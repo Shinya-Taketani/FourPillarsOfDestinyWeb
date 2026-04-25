@@ -17,7 +17,28 @@ readonly class AppraisalService
             'balance' => $this->getEnergyAdvice($scores),
             'dayun_comments' => $this->interpretDayun($data['dayun']['cycles'] ?? []),
             'saiun_comment' => $this->interpretSaiun($data['saiun']['ten_god'] ?? ''),
+            'getsuun_comments' => $this->interpretGetsuun($data['getsuun'] ?? []),
         ];
+    }
+
+    private function interpretGetsuun(array $months): array
+    {
+        $meanings = [
+            '比肩' => '自分を強く持つ月。意思が通りやすい反面、強引さには注意が必要です。',
+            '劫財' => '社交が活発で、出費が増えがちな月。人との協力が成功の鍵となります。',
+            '食神' => '心身ともにリラックスできる幸運月。楽しみや食、趣味を優先して吉。',
+            '傷官' => '感性が鋭くなり、仕事や表現で成果が出る月。言葉のトゲには気を付けて。',
+            '偏財' => '人やお金の動きが激しくなるチャンス月。積極的に動くことで実を結びます。',
+            '正財' => '堅実な努力が認められる月。家計や仕事の土台を整えるのに最適な時期。',
+            '偏官' => '非常に多忙で、責任ある立場に置かれる月。スピード感を持って対処を。',
+            '正官' => '信用が高まり、物事が計画通りに進む安定月。正攻法でのアプローチが吉。',
+            '偏印' => '新しいアイデアや知識を吸収できる月。副業や新しい趣味に縁があります。',
+            '印綬' => '周囲の援助を得て、物事が静かに解決に向かう月。学びや研究に集中できます。',
+        ];
+
+        return array_map(fn($m) => [
+            'comment' => $meanings[$m['ten_god']] ?? '今月のリズムを大切に過ごしましょう。'
+        ], $months);
     }
 
     private function interpretSaiun(string $tenGod): string

@@ -18,7 +18,8 @@ readonly class DestinyCalculationService
         private ZokanService $zokanService,
         private AppraisalService $appraisalService,
         private DayunService $dayunService,
-        private SaiunService $saiunService, // 追加
+        private SaiunService $saiunService,
+        private GetsuunService $getsuunService, // ここが欠けていたため止まっていました
     ) {}
 
     public function analyze(string $birthDate, float $longitude, string $gender = 'male'): array
@@ -47,10 +48,12 @@ readonly class DestinyCalculationService
             'five_elements_scores' => $this->strengthService->calculate($pillarIds, (int)$solar['month_branch_id']),
         ];
 
-        // 歳運（2026年）の計算
+        // 運勢計算
         $res['saiun'] = $this->saiunService->calculate(2026, $dayPillar['stem_id']);
-        
+        $res['getsuun'] = $this->getsuunService->calculate(2026, $dayPillar['stem_id']);
         $res['dayun'] = $this->dayunService->calculate($yearPillar, $pillarIds['month'], $dayPillar['stem_id'], $lmt, $solar, $gender);
+        
+        // 鑑定文生成
         $res['appraisal'] = $this->appraisalService->generate($res, $res['five_elements_scores']);
 
         return $res;
