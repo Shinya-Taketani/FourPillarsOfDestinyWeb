@@ -41,8 +41,15 @@ readonly class StrengthCalculationService
                         ->get();
             
             foreach ($ratios as $ratio) {
-                // 蔵干の日数比率に応じて加算 (例: 30日中の18日なら 0.6点)
-                $scores[$ratio->element_id] += ($ratio->days / 30.0);
+                // DBのelement_idが空の場合、stem_idから逆引きする安全策
+                $eid = $ratio->element_id;
+                if (!$eid && isset($ratio->stem_id)) {
+                    $eid = DB::table('master_stems')->where('id', $ratio->stem_id)->value('element_id');
+                }
+                
+                if ($eid) {
+                    $scores[$eid] += ($ratio->days / 30.0);
+                }
             }
         }
 

@@ -14,51 +14,59 @@ readonly class DestinyCalculationService
         private SolarTermService $solarService,
         private StrengthCalculationService $strengthService,
         private StarCalculationService $starService,
-        private SexagenaryService $sexagenaryService, // 追加
+        private SexagenaryService $sexagenaryService,
+        private ZokanService $zokanService,
+        private AppraisalService $appraisalService,
+        private DayunService $dayunService,
+        private SaiunService $saiunService, // 追加
     ) {}
 
-    public function analyze(string $birthDate, float $longitude): array
+    public function analyze(string $birthDate, float $longitude, string $gender = 'male'): array
     {
-        $lmtDateTime = $this->lmtService->calculate(CarbonImmutable::parse($birthDate), $longitude);
-        $solar = $this->solarService->getSolarInfo($lmtDateTime);
-
-        // 【本物化】各柱の干支を動的に計算
-        $yearPillar  = $this->sexagenaryService->getYearPillar($lmtDateTime, $solar['term_name']);
-        $dayPillar   = $this->sexagenaryService->getDayPillar($lmtDateTime);
-        $hourPillar  = $this->sexagenaryService->getHourPillar($lmtDateTime, $dayPillar['stem_id']);
+        $lmt = $this->lmtService->calculate(CarbonImmutable::parse($birthDate), $longitude);
+        $solar = $this->solarService->getSolarInfo($lmt);
+        $dayPillar = $this->sexagenaryService->getDayPillar($lmt);
+        $yearPillar = $this->sexagenaryService->getYearPillar($lmt, $solar);
         
-        // 月柱は節入り判定から取得（本来はもっと複雑ですが、まずは連動させます）
-        $monthPillar = ['stem_id' => $solar['month_stem_id'], 'branch_id' => $solar['month_branch_id']];
-
         $pillarIds = [
-            'year'  => $yearPillar,
-            'month' => $monthPillar,
-            'day'   => $dayPillar,
-            'hour'  => $hourPillar,
+            'year' => $yearPillar,
+            'month' => ['stem_id' => $solar['month_stem_id'], 'branch_id' => $solar['month_branch_id']],
+            'day' => $dayPillar,
+            'hour' => $this->sexagenaryService->getHourPillar($lmt, $dayPillar['stem_id']),
         ];
 
-        return [
-            'lmt_datetime' => $lmtDateTime->toDateTimeString(),
+        $res = [
+            'lmt_datetime' => $lmt->toDateTimeString(),
             'solar_term' => $solar['term_name'],
             'pillars' => [
-                'year'  => $this->formatPillar($pillarIds['year'], $dayPillar['stem_id']),
-                'month' => $this->formatPillar($pillarIds['month'], $dayPillar['stem_id']),
-                'day'   => $this->formatPillar($pillarIds['day'], $dayPillar['stem_id']),
-                'hour'  => $this->formatPillar($pillarIds['hour'], $dayPillar['stem_id']),
+                'year' => $this->format($pillarIds['year'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
+                'month' => $this->format($pillarIds['month'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
+                'day' => $this->format($pillarIds['day'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
+                'hour' => $this->format($pillarIds['hour'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
             ],
-            'five_elements_scores' => $this->strengthService->calculate($pillarIds, 1),
+            'five_elements_scores' => $this->strengthService->calculate($pillarIds, (int)$solar['month_branch_id']),
         ];
+
+        // 歳運（2026年）の計算
+        $res['saiun'] = $this->saiunService->calculate(2026, $dayPillar['stem_id']);
+        
+        $res['dayun'] = $this->dayunService->calculate($yearPillar, $pillarIds['month'], $dayPillar['stem_id'], $lmt, $solar, $gender);
+        $res['appraisal'] = $this->appraisalService->generate($res, $res['five_elements_scores']);
+
+        return $res;
     }
 
-    private function formatPillar(array $pillar, int $dayStemId): array
+    private function format($p, $dsId, $lmt, $start): array
     {
-        $stem = DB::table('master_stems')->where('id', $pillar['stem_id'])->first();
-        $branch = DB::table('master_branches')->where('id', $pillar['branch_id'])->first();
-
+        $stem = DB::table('master_stems')->where('id', $p['stem_id'])->first();
+        $branch = DB::table('master_branches')->where('id', $p['branch_id'])->first();
+        $zId = $this->zokanService->getZokanStemId($p['branch_id'], $lmt, $start);
+        $zStem = DB::table('master_stems')->where('id', $zId)->first();
         return [
-            'kanji' => ($stem->name ?? '') . ($branch->name ?? ''),
-            'ten_god' => $this->starService->getTenGod($dayStemId, $pillar['stem_id']),
-            'twelve_life_stage' => $this->starService->getTwelveLifeStage($dayStemId, $pillar['branch_id']),
+            'kanji' => ($stem->name ?? '').($branch->name ?? ''),
+            'ten_god' => ['name' => $this->starService->getTenGod($dsId, $p['stem_id'])],
+            'zokan' => ['name' => $zStem->name ?? '?', 'ten_god_name' => $this->starService->getTenGod($dsId, $zId)],
+            'twelve_life_stage' => ['name' => $this->starService->getTwelveLifeStage($dsId, $p['branch_id'])],
         ];
     }
 }

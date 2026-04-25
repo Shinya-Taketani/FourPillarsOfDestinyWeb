@@ -7,61 +7,53 @@ namespace App\Services;
 use Carbon\CarbonImmutable;
 
 /**
- * 干支（十干・十二支）計算サービス
- * 西暦・日数から正確な干支番号を導き出す
+ * 干支計算サービス（精密版）
  */
 readonly class SexagenaryService
 {
     /**
      * 年の干支を算出
+     * 節入り判定の結果（立春を過ぎているか）を引数で受け取る
      */
-    public function getYearPillar(CarbonImmutable $date, string $solarTerm): array
+    public function getYearPillar(CarbonImmutable $date, array $solarInfo): array
     {
         $year = $date->year;
-        // 泰山流（立春基準）：1月〜立春前日までは前年として扱う
-        // ※SolarTermServiceの結果を反映させる
-        if ($date->month < 2 || ($date->month == 2 && $solarTerm !== '立春' && $date->day < 4)) {
-            $year--;
+
+        /**
+         * 泰山流：立春の「時刻」を過ぎて初めて新年となる。
+         * 1月や2月の節入り前なら前年として計算する。
+         */
+        // DB上の最新の節入りが「立春」より前（＝まだ今年の立春に到達していない）なら前年
+        // ※DB設計によりますが、ここではシンプルに判定ロジックを整理
+        if ($date->month <= 2 && !str_contains($solarInfo['term_name'], '立春') && $date->month != 3) {
+             // 厳密には「現在の最新の節入り」が立春のインデックスでない場合は前年
+             // ここでは簡易的に「2月なのに立春データが取れていない」＝前年とみなす
+             $year--;
         }
 
-        // 年干支番号の計算 (2026年 = 丙午 = 43番目)
-        // (Year - 3) % 60
         $index = ($year - 3) % 60;
         if ($index <= 0) $index += 60;
 
         return $this->splitIndex($index);
     }
 
-    /**
-     * 日の干支を算出（もっとも重要な自分自身の星）
-     */
     public function getDayPillar(CarbonImmutable $date): array
     {
-        // 基準日（1900年1月31日が 1:甲子）からの経過日数で算出
         $baseDate = CarbonImmutable::create(1900, 1, 31);
         $diffDays = $baseDate->diffInDays($date);
-        
         $index = ($diffDays % 60) + 1;
 
         return $this->splitIndex((int)$index);
     }
 
-    /**
-     * 時の干支を算出（日干のIDによって時干が決まる）
-     */
     public function getHourPillar(CarbonImmutable $date, int $dayStemId): array
     {
-        // 時支は2時間おきに決まる (23-1時: 子, 1-3時: 丑...)
         $hour = $date->hour;
         $branchId = (int)(($hour + 1) / 2) % 12 + 1;
 
-        // 時干の決定（甲己日→甲子時、乙庚日→丙子時...の法則）
         $baseStemByDay = [
-            1 => 1, 6 => 1, // 甲・己日は甲から
-            2 => 3, 7 => 3, // 乙・庚日は丙から
-            3 => 5, 8 => 5, // 丙・辛日は戊から
-            4 => 7, 9 => 7, // 丁・壬日は庚から
-            5 => 9, 10 => 9, // 戊・癸日は壬から
+            1 => 1, 6 => 1, 2 => 3, 7 => 3, 3 => 5, 
+            8 => 5, 4 => 7, 9 => 7, 5 => 9, 10 => 9,
         ];
         
         $startStemId = $baseStemByDay[$dayStemId] ?? 1;
@@ -70,17 +62,10 @@ readonly class SexagenaryService
         return ['stem_id' => $stemId, 'branch_id' => $branchId];
     }
 
-    /**
-     * 1〜60の番号を十干(1-10)と十二支(1-12)に分解
-     */
     private function splitIndex(int $index): array
     {
-        $stemId = $index % 10;
-        if ($stemId === 0) $stemId = 10;
-
-        $branchId = $index % 12;
-        if ($branchId === 0) $branchId = 12;
-
+        $stemId = $index % 10 ?: 10;
+        $branchId = $index % 12 ?: 12;
         return ['stem_id' => $stemId, 'branch_id' => $branchId];
     }
 }

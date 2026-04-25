@@ -4,37 +4,33 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 
-/**
- * 節入りおよび天保元始暦（定気法）に基づく干支算出サービス
- */
 readonly class SolarTermService
 {
-    /**
-     * 指定された日時がどの節気に入っているかを判定し、干支情報を返す
-     */
     public function getSolarInfo(CarbonImmutable $lmtDateTime): array
     {
-        // DBから二十四節気のマスターを取得
-        $terms = DB::table('master_solar_terms')->orderBy('longitude_degree', 'asc')->get();
+        $term = DB::table('master_solar_terms')
+            ->where('started_at', '<=', $lmtDateTime->toDateTimeString())
+            ->orderBy('started_at', 'desc')
+            ->first();
 
-        /**
-         * ここでは本来、太陽黄経を精密計算するアルゴリズム（略算式）を用いますが、
-         * 今回は簡易版として、節入り日の判定ロジックをシミュレーションします。
-         * 泰山流では、この節入り時刻（定気法）が1秒でもずれると月柱が変わるため、
-         * 最終的には「国立天文台」の暦要項に準拠したデータ参照が推奨されます。
-         */
-        
-        // 仮の判定（本実装ではここに太陽黄経計算ロジックが入ります）
-        // 例：2026年の立春は 2月4日
-        
+        // データがない場合のフォールバックにも started_at を追加
+        if (!$term) {
+            return [
+                'term_name' => 'データ範囲外',
+                'month_stem_id' => 1,
+                'month_branch_id' => 3,
+                'started_at' => $lmtDateTime->toDateTimeString(), // 仮の日時
+            ];
+        }
+
         return [
-            'term_name' => '立春',
-            'month_stem_id' => 1, // 甲
-            'month_branch_id' => 3, // 寅
-            'is_after_setsunyu' => true,
+            'term_name' => $term->name,
+            'month_stem_id' => (int)$term->month_stem_id,
+            'month_branch_id' => (int)$term->month_branch_id,
+            'started_at' => $term->started_at, // ← これを追加！
         ];
     }
 }
