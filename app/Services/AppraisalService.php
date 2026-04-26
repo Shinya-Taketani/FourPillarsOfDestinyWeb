@@ -18,6 +18,23 @@ readonly class AppraisalService
             'dayun_comments' => $this->interpretDayun($data['dayun']['cycles'] ?? []),
             'saiun_comment' => $this->interpretSaiun($data['saiun']['ten_god'] ?? ''),
             'getsuun_comments' => $this->interpretGetsuun($data['getsuun'] ?? []),
+            'nichiun_meanings' => $this->getNichiunMeanings(),
+        ];
+    }
+
+    private function getNichiunMeanings(): array
+    {
+        return [
+            '比肩' => '自分の意志を貫く日。新しいスタートに吉。',
+            '劫財' => '協力者が現れる日。出費には注意が必要。',
+            '食神' => 'のんびり楽しく過ごせる日。美食や趣味に縁。',
+            '傷官' => '感性が冴え渡る日。クリエイティブな活動に。',
+            '偏財' => '活気あふれる日。人脈や金運が動くチャンス。',
+            '正財' => '誠実に物事を進める日。整理整頓や貯蓄に吉。',
+            '偏官' => '多忙で変化の多い日。迅速な行動が道を拓く。',
+            '正官' => '信用が高まり、物事が順調に進む安定した日。',
+            '偏印' => 'アイデアが湧く日。知的好奇心を満たす行動を。',
+            '印綬' => '学びや癒やしの日。落ち着いた判断ができる時。',
         ];
     }
 
@@ -35,10 +52,7 @@ readonly class AppraisalService
             '偏印' => '新しいアイデアや知識を吸収できる月。副業や新しい趣味に縁があります。',
             '印綬' => '周囲の援助を得て、物事が静かに解決に向かう月。学びや研究に集中できます。',
         ];
-
-        return array_map(fn($m) => [
-            'comment' => $meanings[$m['ten_god']] ?? '今月のリズムを大切に過ごしましょう。'
-        ], $months);
+        return array_map(fn($m) => ['comment' => $meanings[$m['ten_god']] ?? '今月のリズムを大切に過ごしましょう。'], $months);
     }
 
     private function interpretSaiun(string $tenGod): string
@@ -113,14 +127,6 @@ readonly class AppraisalService
             '偏印' => '好奇心や探求心が強まる時期。伝統に縛られない自由な発想で、副業や趣味、特殊な分野で道が開けます。',
             '印綬' => '学びと精神的充足の時期。知識の習得や教育的な活動に縁があり、目上の人からの引き立ても期待できる安定した運気です。',
         ];
-
-        foreach ($cycles as $cycle) {
-            $interpretations[] = [
-                'age' => $cycle['age'],
-                'comment' => $meanings[$cycle['ten_god']] ?? '自分の本質を活かして着実に進むべき時期です。'
-            ];
-        }
-
-        return $interpretations;
+        return array_map(fn($c) => ['comment' => $meanings[$c['ten_god']] ?? '自分の本質を活かして着実に進むべき時期です。'], $cycles);
     }
 }

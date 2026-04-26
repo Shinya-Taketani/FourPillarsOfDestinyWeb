@@ -9,6 +9,7 @@ ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinear
 const form = ref({ name: '鑑定者', birthday: '1980-01-01T12:00', longitude: 135.45, gender: 'male' });
 const result = ref(null);
 const loading = ref(false);
+const activeMonth = ref(null);
 
 const submit = async () => {
     loading.value = true;
@@ -17,6 +18,8 @@ const submit = async () => {
         result.value = response.data.data;
     } catch (error) { alert('鑑定エラーが発生しました。'); } finally { loading.value = false; }
 };
+
+const toggleMonth = (idx) => { activeMonth.value = activeMonth.value === idx ? null : idx; };
 
 const chartData = computed(() => {
     if (!result.value) return null;
@@ -43,7 +46,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                 <select v-model="form.gender" class="border-2 p-3 rounded-lg text-xl font-bold"><option value="male">男性</option><option value="female">女性</option></select>
                 <input v-model="form.longitude" type="number" step="0.01" class="border-2 p-3 rounded-lg text-xl font-bold">
             </div>
-            <button @click="submit" :disabled="loading" class="mt-8 w-full bg-indigo-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl active:scale-95 disabled:bg-gray-400">
+            <button @click="submit" :disabled="loading" class="mt-8 w-full bg-indigo-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl disabled:bg-gray-400">
                 {{ loading ? '算出中...' : '運命を算出する' }}
             </button>
         </div>
@@ -58,21 +61,32 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                     </div>
                     <div class="flex-1">
                         <h2 class="text-2xl font-black text-gray-400 mb-2">2026年の運勢テーマ</h2>
-                        <p class="text-3xl font-bold text-gray-700 leading-relaxed italic">“ {{ result.appraisal.saiun_comment }} ”</p>
+                        <p class="text-4xl font-bold text-gray-700 leading-relaxed italic">“ {{ result.appraisal.saiun_comment }} ”</p>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white p-8 rounded-xl shadow-md mb-8 border-t-8 border-orange-500">
-                <h2 class="text-3xl font-black mb-8 border-l-8 border-orange-500 pl-4">2026年 月々の運勢 (月運)</h2>
+                <h2 class="text-3xl font-black mb-8 border-l-8 border-orange-500 pl-4 text-orange-900">2026年 月運 (クリックで日運を表示)</h2>
                 <div class="space-y-6">
-                    <div v-for="(m, idx) in result.getsuun" :key="idx" class="flex flex-col lg:flex-row items-stretch bg-orange-50 rounded-2xl p-6 gap-6 border-2 border-orange-100 shadow-sm">
-                        <div class="flex items-center gap-6 w-full lg:w-80 shrink-0 lg:border-r-2 border-orange-200 pr-0 lg:pr-6">
-                            <div class="w-24 text-center"><div class="text-4xl font-black text-orange-600">{{ m.month_name }}</div></div>
-                            <div class="flex-1 text-center"><div class="text-5xl font-serif font-black text-gray-900 mb-2">{{ m.kanji }}</div><div class="px-4 py-1 bg-orange-600 text-white text-lg rounded-lg font-black shadow-md">{{ m.ten_god }}</div></div>
+                    <div v-for="(m, idx) in result.getsuun" :key="idx" @click="toggleMonth(idx)" class="cursor-pointer group">
+                        <div class="flex flex-col lg:flex-row items-stretch bg-orange-50 rounded-2xl p-6 gap-6 border-2 border-orange-100 shadow-sm group-hover:bg-orange-100">
+                            <div class="flex items-center gap-6 w-full lg:w-80 shrink-0 lg:border-r-2 border-orange-200 pr-0 lg:pr-6">
+                                <div class="w-24 text-center"><div class="text-4xl font-black text-orange-600">{{ m.month_name }}</div></div>
+                                <div class="flex-1 text-center"><div class="text-5xl font-serif font-black text-gray-900 mb-2">{{ m.kanji }}</div><div class="px-4 py-1 bg-orange-600 text-white text-lg rounded-lg font-black shadow-md">{{ m.ten_god }}</div></div>
+                            </div>
+                            <div class="w-full bg-white p-6 rounded-xl border-2 border-orange-50 flex items-center shadow-inner">
+                                <p class="text-2xl font-bold text-gray-700 italic flex-1 leading-relaxed">“ {{ result.appraisal.getsuun_comments[idx]?.comment }} ”</p>
+                                <span class="text-orange-400 font-black text-xl ml-4">{{ activeMonth === idx ? '▲ 閉じる' : '▼ 日運' }}</span>
+                            </div>
                         </div>
-                        <div class="w-full bg-white p-6 rounded-xl border-2 border-orange-50 flex items-center shadow-inner">
-                            <p class="text-2xl font-bold text-gray-700 leading-relaxed italic">“ {{ result.appraisal.getsuun_comments[idx]?.comment }} ”</p>
+                        <div v-if="activeMonth === idx" class="mt-4 bg-white rounded-2xl border-4 border-orange-200 p-8 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in">
+                            <div v-for="d in m.days" :key="d.day" class="flex items-center gap-6 p-6 bg-gray-50 rounded-2xl border-2">
+                                <div class="w-16 text-center font-black text-3xl text-orange-600">{{ d.day }}日</div>
+                                <div class="text-4xl font-serif font-black text-gray-900">{{ d.kanji }}</div>
+                                <div class="px-4 py-1 bg-indigo-600 text-white text-lg rounded-lg font-black">{{ d.ten_god }}</div>
+                                <div class="flex-1 text-xl font-bold text-gray-600">{{ result.appraisal.nichiun_meanings[d.ten_god] }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -92,13 +106,13 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                     </div>
                 </div>
                 <div class="bg-white p-8 rounded-xl shadow-md border-t-8 border-emerald-500 text-center">
-                    <h2 class="text-3xl font-black mb-6 text-center">五行力量</h2>
+                    <h2 class="text-3xl font-black mb-6">五行力量</h2>
                     <div class="h-80"><Radar v-if="chartData" :data="chartData" :options="chartOptions" /></div>
                 </div>
             </div>
 
             <div class="bg-white p-8 rounded-xl shadow-md mb-8 border-t-8 border-indigo-600">
-                <h2 class="text-3xl font-black mb-8 border-l-8 border-indigo-600 pl-4 flex justify-between items-center">
+                <h2 class="text-3xl font-black mb-8 border-l-8 border-indigo-600 pl-4 flex justify-between items-center text-indigo-900">
                     <span>一生の歩み (大運)</span><span class="text-xl font-bold text-gray-400 italic">{{ result.dayun.start_age }}歳立運</span>
                 </h2>
                 <div class="space-y-6">
@@ -108,7 +122,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                             <div class="flex-1 text-center"><div class="text-5xl font-serif font-black text-gray-900 mb-2">{{ c.kanji }}</div><div class="px-4 py-1 bg-indigo-600 text-white text-lg rounded-lg font-black shadow-md">{{ c.ten_god }}</div></div>
                         </div>
                         <div class="w-full bg-white p-6 rounded-xl border-2 border-indigo-50 flex items-center shadow-inner">
-                            <p class="text-2xl font-bold text-gray-700 leading-relaxed italic">“ {{ result.appraisal.dayun_comments[i]?.comment }} ”</p>
+                            <p class="text-2xl font-bold text-gray-700 italic leading-relaxed">“ {{ result.appraisal.dayun_comments[i]?.comment }} ”</p>
                         </div>
                     </div>
                 </div>
@@ -116,7 +130,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div v-for="(v, k) in {性格:result.appraisal.personality, 仕事:result.appraisal.work, 助言:result.appraisal.balance}" :key="k" class="p-8 rounded-2xl border-l-8 shadow-lg bg-white" :class="{'border-indigo-600':k==='性格','border-emerald-600':k==='仕事','border-amber-600':k==='助言'}">
-                    <h3 class="text-2xl font-black mb-4">{{ k }}の本質</h3><p class="text-xl font-bold text-gray-700 leading-loose">{{ v }}</p>
+                    <h3 class="text-2xl font-black mb-4">{{ k }}の本質</h3><p class="text-2xl font-bold text-gray-700 leading-loose">{{ v }}</p>
                 </div>
             </div>
         </div>
@@ -124,6 +138,6 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 </template>
 
 <style scoped>
-.animate-in { animation: fadeIn 1s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+.animate-in { animation: fadeIn 0.8s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
