@@ -46,7 +46,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 
 <template>
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen font-sans">
-        <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">泰山流 相性精密鑑定</h1>
+        <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">相性精密鑑定</h1>
         
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
             <div v-for="(p, i) in [person1, person2]" :key="i" class="bg-white p-8 rounded-2xl shadow-xl border-t-8 transition-all hover:shadow-2xl" :class="i===0?'border-indigo-500':'border-red-500'">
