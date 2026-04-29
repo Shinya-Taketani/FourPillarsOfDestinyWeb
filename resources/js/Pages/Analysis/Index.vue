@@ -6,13 +6,12 @@ import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, Ra
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
-// 修正ポイント：デフォルト時間を 12:00 から 09:00 に変更
-const form = ref({ name: '鑑定者', birthday: '1980-01-01T09:00', longitude: 135.45, gender: 'male' });
+// 1980年・京都(135.76)・09:00をデフォルトに設定
+const form = ref({ name: '鑑定者', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'male' });
 const result = ref(null);
 const loading = ref(false);
 const activeMonth = ref(null);
 
-// 47都道府県の経度データ（出典：国土地理院 県庁所在地基準）
 const regions = [
     { label: '北海道・東北', cities: [{n:'北海道', l:141.35}, {n:'青森', l:140.74}, {n:'岩手', l:141.15}, {n:'宮城', l:140.87}, {n:'秋田', l:140.10}, {n:'山形', l:140.34}, {n:'福島', l:140.47}] },
     { label: '関東', cities: [{n:'茨城', l:140.45}, {n:'栃木', l:139.88}, {n:'群馬', l:139.06}, {n:'埼玉', l:139.65}, {n:'千葉', l:140.12}, {n:'東京', l:139.69}, {n:'神奈川', l:139.64}] },
@@ -22,9 +21,7 @@ const regions = [
     { label: '九州・沖縄', cities: [{n:'福岡', l:130.40}, {n:'佐賀', l:130.30}, {n:'長崎', l:129.87}, {n:'熊本', l:130.74}, {n:'大分', l:131.60}, {n:'宮崎', l:131.42}, {n:'鹿児島', l:130.56}, {n:'沖縄', l:127.68}] }
 ];
 
-const setCityLng = (lng) => {
-    form.value.longitude = lng;
-};
+const setCityLng = (lng) => { form.value.longitude = lng; };
 
 const submit = async () => {
     loading.value = true;

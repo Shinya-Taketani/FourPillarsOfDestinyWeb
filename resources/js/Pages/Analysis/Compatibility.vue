@@ -6,9 +6,9 @@ import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, Ra
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
-// デフォルト時間を 09:00 に変更
-const person1 = ref({ name: '自分', birthday: '1990-01-01T09:00', longitude: 135.0, gender: 'male' });
-const person2 = ref({ name: '相手', birthday: '1990-01-01T09:00', longitude: 135.0, gender: 'female' });
+// 修正：1980年・京都(135.76)・09:00をデフォルトに設定
+const person1 = ref({ name: '自分', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'male' });
+const person2 = ref({ name: '相手', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'female' });
 const result = ref(null);
 const loading = ref(false);
 
