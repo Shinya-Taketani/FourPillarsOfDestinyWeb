@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AnalysisWebController;
+use App\Http\Controllers\CompatibilityController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -26,5 +27,6 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/analysis', [AnalysisWebController::class, 'index'])->name('analysis.index');
+Route::get('/compatibility', [CompatibilityController::class, 'index'])->name('compatibility.index');
 
 require __DIR__.'/auth.php';

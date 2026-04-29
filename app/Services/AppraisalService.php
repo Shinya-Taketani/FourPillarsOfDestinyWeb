@@ -113,12 +113,138 @@ readonly class AppraisalService
             '食神' => '衣食住が充実し、心身ともにゆとりが出る時期。クリエイティブな才能が開花し、人生を楽しむ余裕が生まれます。',
             '傷官' => '感受性が鋭くなり、技術や芸術面で飛躍できる時期。一方で、言葉による衝突や孤独感を感じやすい傾向も。',
             '偏財' => '人脈が広がり、金運・商売運が活発になる時期。多忙になりますが、チャンスを掴みやすい「動」の10年です。',
-            '正財' => '着実な積み重ねが実を結ぶ安定期。家庭運や蓄財運に恵まれ、信頼を築くことで長期的な基盤が整います。',
+            '正財' => '着実な積み重ねが実を結ぶ安定期。家庭運や蓄財運に恵まれ、信頼を築くることで長期的な基盤が整います。',
             '偏官' => '変化と激動の時期。責任ある立場を任されたり、環境が大きく変わったりします。勇気を持って立ち向かうことで成長します。',
             '正官' => '名誉や社会的信用を得る時期。規律正しく行動することで、社会からの評価が高まり、安定した地位を築けます。',
             '偏印' => '好奇心や探求心が強まる時期。伝統に縛られない自由な発想で、副業や趣味、特殊な分野で道が開けます。',
             '印綬' => '学びと精神的充足の時期。知識の習得や教育的な活動に縁があり、目上の人からの引き立ても期待できる安定した運気です。',
         ];
         return array_map(fn($c) => ['comment' => $meanings[$c['ten_god']] ?? '着実に進むべき時期です。'], $cycles);
+    }
+
+    /**
+     * 2人の相性を精密に鑑定する
+     */
+    public function compareDestiny(array $result1, array $result2): array
+    {
+        $totalScore = 60;
+        $details = [];
+
+        // 地支を抽出
+        $yearBranch1 = mb_substr($result1['pillars']['year']['kanji'], 1, 1);
+        $yearBranch2 = mb_substr($result2['pillars']['year']['kanji'], 1, 1);
+
+        // 年柱の相性判定
+        $yearRelation = $this->checkYearBranchRelation($yearBranch1, $yearBranch2);
+        $totalScore += $yearRelation['score'];
+        $details['year_relation'] = $yearRelation;
+
+        // 日干を抽出
+        $stem1 = mb_substr($result1['pillars']['day']['kanji'], 0, 1);
+        $stem2 = mb_substr($result2['pillars']['day']['kanji'], 0, 1);
+        $stemRelation = $this->checkStemRelation($stem1, $stem2);
+        $totalScore += $stemRelation['score'];
+        $details['stem_relation'] = $stemRelation;
+
+        // 五行補完（ここも結論＋助言に統一）
+        $balanceRelation = [
+            'score' => 5, 
+            'name' => '五行補完', 
+            'conclusion' => 'お互いのエネルギーを補い合える、バランスの良い関係です。',
+            'advice' => '二人でいることで精神的な安定が得られます。無理に合わせようとせず自然体で過ごしてください。'
+        ];
+        $totalScore += $balanceRelation['score'];
+        $details['balance_relation'] = $balanceRelation;
+
+        $finalScore = max(0, min(100, $totalScore));
+
+        return [
+            'total_score' => $finalScore,
+            'details' => $details,
+            'summary' => $this->generateCompatibilitySummary($finalScore)
+        ];
+    }
+
+    /**
+     * 年柱の判定ロジック
+     */
+    private function checkYearBranchRelation(string $b1, string $b2): array
+    {
+        $sango = ['水局'=>['申','子','辰'], '木局'=>['亥','卯','未'], '火局'=>['寅','午','戌'], '金局'=>['巳','酉','丑']];
+        foreach ($sango as $element => $group) {
+            if (in_array($b1, $group) && in_array($b2, $group) && $b1 !== $b2) {
+                $advice = [
+                    '水局' => '知略と適応力で困難を回避できます。二人で計画を練る時間を大切にしてください。',
+                    '木局' => '共存共栄の精神が成功の鍵です。互いの成長を喜び合える環境を整えましょう。',
+                    '火局' => '爆発的な推進力がありますが、独走に注意。周囲を置き去りにしない配慮が必要です。',
+                    '金局' => '強固な信頼を築けます。約束事を重んじ、長期的な資産形成を共に歩むのが吉です。',
+                ][$element];
+                return [
+                    'score' => 20, 
+                    'name' => "三合会局（{$element}）", 
+                    'conclusion' => "個人の運命を超えた巨大な潮流を生み出す、宿命的な結束です。", 
+                    'advice' => $advice
+                ];
+            }
+        }
+
+        $sochu = ['子'=>'午','午'=>'子','卯'=>'酉','酉'=>'卯','寅'=>'申','申'=>'寅','巳'=>'亥','亥'=>'巳','辰'=>'戌','戌'=>'辰','丑'=>'未','未'=>'丑'];
+        if (isset($sochu[$b1]) && $sochu[$b1] === $b2) {
+            $isOu = in_array($b1, ['子', '午', '卯', '酉']);
+            $advice = $isOu ? "感情が激突しやすいため、一時の感情で言葉を投げない「沈黙の知恵」を持ってください。" : "役割分担を明確にし、互いの領域を侵さないことが共存の秘訣です。";
+            return [
+                'score' => -15, 
+                'name' => '地支相沖', 
+                'conclusion' => "魂を研磨し合う「激しい摩擦」の関係です。", 
+                'advice' => $advice
+            ];
+        }
+
+        $sankei = ['無恩の刑'=>['寅','巳','申'], '持勢の刑'=>['丑','戌','未'], '無礼の刑'=>['子','卯']];
+        foreach ($sankei as $type => $group) {
+            if (in_array($b1, $group) && in_array($b2, $group) && $b1 !== $b2) {
+                $advice = [
+                    '無恩の刑' => '甘えが不信感に変わる恐れがあります。親しい仲にも峻烈な礼儀を忘れないでください。', 
+                    '持勢の刑' => '意地の張り合いがトラブルの元です。自尊心よりも実利を優先する柔軟さを持ちましょう。', 
+                    '無礼の刑' => 'デリカシーを欠いた言動に注意が必要です。相手の聖域に踏み込まない節度が鍵となります。'
+                ][$type];
+                return [
+                    'score' => -10, 
+                    'name' => "三刑殺（{$type}）", 
+                    'conclusion' => "心理的な摩擦が生じやすい関係です。", 
+                    'advice' => $advice
+                ];
+            }
+        }
+        return [
+            'score' => 0, 
+            'name' => '平穏', 
+            'conclusion' => '家系的な衝突はなく、自然体で付き合える安定した関係です。', 
+            'advice' => '特別な対策は不要です。お互いの個性をそのまま尊重し合ってください。'
+        ];
+    }
+
+    private function checkStemRelation($s1, $s2): array {
+        $kango = ['甲'=>'己','己'=>'甲','乙'=>'庚','庚'=>'乙','丙'=>'辛','辛'=>'丙','丁'=>'壬','壬'=>'丁','戊'=>'癸','癸'=>'戊'];
+        if (isset($kango[$s1]) && $kango[$s1] === $s2) {
+            return [
+                'score' => 20, 
+                'name' => '干合', 
+                'conclusion' => '精神的に強く惹かれ合う、最高の結びつきです。', 
+                'advice' => '理屈抜きに一体感を感じられます。その絆を過信せず、言葉での感謝を忘れずに。'
+            ];
+        }
+        return [
+            'score' => 0, 
+            'name' => '中庸', 
+            'conclusion' => '精神面での大きな波風はありません。', 
+            'advice' => '波長が穏やかなため、時間をかけて信頼を深めていくことができます。'
+        ];
+    }
+
+    private function generateCompatibilitySummary($score): string {
+        if ($score >= 80) return "宿命的な縁で結ばれた最高のパートナーです。";
+        if ($score >= 50) return "安定した関係を築ける良好な相性です。";
+        return "互いの違いを尊重することで道が開ける関係です。";
     }
 }
