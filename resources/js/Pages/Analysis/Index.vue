@@ -6,7 +6,8 @@ import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, Ra
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
-const form = ref({ name: '鑑定者', birthday: '1980-01-01T12:00', longitude: 135.45, gender: 'male' });
+// 修正ポイント：デフォルト時間を 12:00 から 09:00 に変更
+const form = ref({ name: '鑑定者', birthday: '1980-01-01T09:00', longitude: 135.45, gender: 'male' });
 const result = ref(null);
 const loading = ref(false);
 const activeMonth = ref(null);
@@ -67,14 +68,14 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                     </div>
                 </div>
 
-                <div class="bg-gray-50 p-4 rounded-xl border-2 border-dashed border-gray-200">
-                    <span class="text-xs font-black text-indigo-400 mb-3 block uppercase tracking-widest">出生都道府県を選択 (経度自動入力)</span>
-                    <div class="space-y-4 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
-                        <div v-for="region in regions" :key="region.label" class="space-y-1">
-                            <div class="text-[10px] font-bold text-gray-400 uppercase">{{ region.label }}</div>
-                            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                <div class="bg-gray-100 p-6 rounded-xl border-2 border-dashed border-gray-200">
+                    <span class="text-xs font-black text-indigo-400 mb-4 block uppercase tracking-widest">出生都道府県を選択 (経度自動入力)</span>
+                    <div class="space-y-5 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div v-for="region in regions" :key="region.label" class="space-y-2">
+                            <div class="text-xs font-bold text-indigo-400 mb-2 border-b border-indigo-50 pb-1 uppercase">{{ region.label }}</div>
+                            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
                                 <button v-for="city in region.cities" :key="city.n" @click="setCityLng(city.l)" 
-                                    class="py-1.5 px-1 border rounded-md text-[11px] font-bold transition-all shadow-sm active:scale-95"
+                                    class="py-2.5 px-2 border rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
                                     :class="form.longitude === city.l 
                                         ? 'bg-indigo-600 text-white border-indigo-600' 
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-indigo-50 hover:text-indigo-600'">
@@ -178,7 +179,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 <style scoped>
 .animate-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #e0e7ff; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 </style>
