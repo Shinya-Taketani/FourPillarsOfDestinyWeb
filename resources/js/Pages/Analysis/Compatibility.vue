@@ -45,6 +45,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 </script>
 
 <template>
+    <Head title="相性精密鑑定" />
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen font-sans">
         <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">相性精密鑑定</h1>
         

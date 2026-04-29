@@ -49,6 +49,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 </script>
 
 <template>
+    <Head title="運命鑑定" />
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen text-gray-800">
         <div class="bg-white p-8 rounded-xl shadow-lg mb-8 border-b-8 border-indigo-600">
             <h1 class="text-3xl font-black mb-8 text-indigo-900 border-l-8 border-indigo-600 pl-4">運命鑑定</h1>
