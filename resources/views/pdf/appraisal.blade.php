@@ -5,6 +5,12 @@
     @php
         $fontRegular = str_replace('\\', '/', storage_path('fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'));
         $fontBold = str_replace('\\', '/', storage_path('fonts/Noto_Sans_JP/static/NotoSansJP-Bold.ttf'));
+        // 生年月日のフォーマット変換 (1980-01-01T09:00 -> 1980年01月01日09:00生まれ)
+        try {
+            $formattedBirthday = \Carbon\Carbon::parse($user['birthday'])->format('Y年m月d日H:i') . '生まれ';
+        } catch (\Exception $e) {
+            $formattedBirthday = $user['birthday'];
+        }
     @endphp
 
     <style>
@@ -116,14 +122,14 @@
     
     <div style="margin-bottom: 10px;">
         鑑定者：{{ $user['name'] }} 様（{{ $user['gender'] }}）<br>
-        生年月日：{{ $user['birthday'] }}
+        生年月日：{{ $formattedBirthday }}
     </div>
 
     <div class="section-title">基本命式</div>
     <table>
-        <tr><th>時柱</th><th>日柱</th><th>月柱</th><th>年柱</th></tr>
+        <tr><th>年柱</th><th>月柱</th><th>日柱</th><th>時柱</th></tr>
         <tr>
-            @foreach(['hour', 'day', 'month', 'year'] as $p)
+            @foreach(['year', 'month', 'day', 'hour'] as $p)
             <td>
                 <div class="kanji">{{ $result['pillars'][$p]['kanji'] }}</div>
                 <div class="ten-god-label">{{ $result['pillars'][$p]['ten_god']['name'] }}</div><br>
