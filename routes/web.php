@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AnalysisWebController;
 use App\Http\Controllers\CompatibilityController;
+use App\Http\Controllers\AppraisalController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -28,5 +29,6 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/analysis', [AnalysisWebController::class, 'index'])->name('analysis.index');
 Route::get('/compatibility', [CompatibilityController::class, 'index'])->name('compatibility.index');
+Route::post('/appraisal/pdf', [AppraisalController::class, 'downloadPdf'])->name('appraisal.pdf');
 
 require __DIR__.'/auth.php';

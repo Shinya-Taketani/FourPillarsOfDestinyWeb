@@ -85,9 +85,28 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                 </div>
             </div>
 
-            <button @click="submit" :disabled="loading" class="mt-8 w-full bg-indigo-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl disabled:bg-gray-400 active:scale-[0.98] transition-transform">
-                {{ loading ? '算出中...' : '運命を算出する' }}
-            </button>
+            <div class="flex flex-col md:flex-row gap-4 mt-8">
+                <!-- 算出ボタン -->
+                <button @click="submit" :disabled="loading" class="flex-1 bg-indigo-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl disabled:bg-gray-400 active:scale-[0.98] transition-transform">
+                    {{ loading ? '算出中...' : '運命を算出する' }}
+                </button>
+                
+                <!-- 鑑定結果がある場合のみ表示されるPDF生成フォーム -->
+                <form v-if="result" :action="route('appraisal.pdf')" method="POST" target="_blank" class="flex-1">
+                    <input type="hidden" name="_token" :value="$page.props.csrf_token">
+                    <input type="hidden" name="name" :value="form.name">
+                    <input type="hidden" name="birthday" :value="form.birthday">
+                    <input type="hidden" name="longitude" :value="form.longitude">
+                    <input type="hidden" name="gender" :value="form.gender">
+                    
+                    <button type="submit" class="w-full h-full bg-rose-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl hover:bg-rose-700 transition active:scale-[0.98] flex items-center justify-center gap-2 border-b-4 border-rose-800">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        鑑定書をPDFで保存
+                    </button>
+                </form>
+            </div>
         </div>
 
         <div v-if="result" class="animate-in">
