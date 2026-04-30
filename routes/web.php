@@ -30,5 +30,6 @@ Route::middleware('auth')->group(function () {
 Route::get('/analysis', [AnalysisWebController::class, 'index'])->name('analysis.index');
 Route::get('/compatibility', [CompatibilityController::class, 'index'])->name('compatibility.index');
 Route::post('/appraisal/pdf', [AppraisalController::class, 'downloadPdf'])->name('appraisal.pdf');
+Route::post('/compatibility/pdf', [CompatibilityController::class, 'downloadPdf'])->name('compatibility.pdf');
 
 require __DIR__.'/auth.php';

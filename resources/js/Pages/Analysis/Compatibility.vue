@@ -87,6 +87,26 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
             {{ loading ? '精密相性算出中...' : '二人の相性を精密鑑定する' }}
         </button>
 
+        <div v-if="result" class="mt-4">
+            <form :action="route('compatibility.pdf')" method="POST" target="_blank">
+                <input type="hidden" name="_token" :value="$page.props.csrf_token">
+                <!-- 1人目のデータ -->
+                <input type="hidden" name="person1[name]" :value="person1.name">
+                <input type="hidden" name="person1[birthday]" :value="person1.birthday">
+                <input type="hidden" name="person1[longitude]" :value="person1.longitude">
+                <input type="hidden" name="person1[gender]" :value="person1.gender">
+                <!-- 2人目のデータ -->
+                <input type="hidden" name="person2[name]" :value="person2.name">
+                <input type="hidden" name="person2[birthday]" :value="person2.birthday">
+                <input type="hidden" name="person2[longitude]" :value="person2.longitude">
+                <input type="hidden" name="person2[gender]" :value="person2.gender">
+
+                <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-6 rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3">
+                    <span>鑑定書をPDFで保存する</span>
+                </button>
+            </form>
+        </div>
+
         <div v-if="result" class="mt-12 space-y-10 animate-in">
             <div class="text-center bg-white p-12 rounded-[40px] shadow-2xl border-b-[16px] border-indigo-600 relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-8 opacity-10 font-black text-9xl text-indigo-950 uppercase italic">Compass</div>
