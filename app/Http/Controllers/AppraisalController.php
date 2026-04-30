@@ -38,25 +38,29 @@ class AppraisalController extends Controller
             'currentMonth' => $currentMonthData,
         ];
 
-        // 3. DomPDFオプションの設定 (TypeError回避)
-        $options = new Options();
-        $options->set('fontDir', storage_path('fonts/'));
-        $options->set('fontCache', storage_path('fonts/'));
-        $options->set('defaultFont', 'NotoSansJP');
-        $options->set('isHtml5ParserEnabled', true);
-        $options->set('isRemoteEnabled', true);
-        $options->set('chroot', base_path());
+        // 3. DomPDFオプションの設定
+        Pdf::setOption([
+            'fontDir' => storage_path('fonts'),
+            'fontCache' => storage_path('fonts'),
+            'defaultFont' => 'NotoSansJP',
+            'isHtml5ParserEnabled' => true,
 
-        // 4. 文字化け（リテラル問題）の解決策
-        // Viewをレンダリングし、UTF-8リテラルをHTMLエンティティに変換
-        $html = view('pdf.appraisal', $data)->render();
-        $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+            // ローカルフォントを使うだけなら remote は不要
+            'isRemoteEnabled' => false,
 
-        // 5. PDF生成
-        $pdf = Pdf::loadHTML($html);
-        $pdf->getDomPDF()->setOptions($options);
+            // storage/fonts が base_path 配下なので base_path で問題なし
+            'chroot' => base_path(),
 
-        return $pdf->setPaper('a4', 'portrait')
-                   ->download('運命鑑定書_' . $name . '.pdf');
+            // 日本語フォントのPDFサイズ肥大化を抑えたい場合
+            'isFontSubsettingEnabled' => true,
+        ]);
+
+        $pdf = Pdf::loadView('pdf.appraisal', $data)
+            ->setPaper('a4', 'portrait');
+
+        $safeName = preg_replace('/[\\\\\/:*?"<>|\r\n]+/u', '_', trim($name));
+        $safeName = $safeName !== '' ? $safeName : '鑑定者';
+
+        return $pdf->download('運命鑑定書_' . $safeName . '.pdf');
     }
 }

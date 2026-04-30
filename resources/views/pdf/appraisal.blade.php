@@ -2,37 +2,113 @@
 <html lang="ja">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    @php
+        $fontRegular = str_replace('\\', '/', storage_path('fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'));
+        $fontBold = str_replace('\\', '/', storage_path('fonts/Noto_Sans_JP/static/NotoSansJP-Bold.ttf'));
+    @endphp
+
     <style>
         @font-face {
             font-family: 'NotoSansJP';
             font-style: normal;
-            font-weight: normal;
-            src: url("{{ storage_path('fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf') }}") format('truetype');
+            font-weight: 400;
+            src: url("file://{{ $fontRegular }}") format('truetype');
         }
 
-        /* 文字化け防止：すべてのHTML要素にフォントを適用 */
+        @font-face {
+            font-family: 'NotoSansJP';
+            font-style: normal;
+            font-weight: 700;
+            src: url("file://{{ $fontBold }}") format('truetype');
+        }
+
         html, body, table, tr, th, td, div, span, h1, h2, strong, small {
             font-family: 'NotoSansJP', sans-serif !important;
         }
 
-        body { 
-            color: #1e1b4b; 
-            line-height: 1.4; 
-            margin: 0; 
+        body {
+            color: #1e1b4b;
+            line-height: 1.4;
+            margin: 0;
             padding: 0;
             font-size: 11px;
+            font-weight: 400;
         }
 
-        .header { border-bottom: 3px solid #4f46e5; padding-bottom: 5px; margin-bottom: 15px; text-align: center; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .section-title { background: #eef2ff; border-left: 6px solid #4f46e5; padding: 4px 8px; font-weight: bold; margin: 15px 0 8px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
-        th, td { border: 1px solid #e2e8f0; padding: 5px; text-align: center; word-wrap: break-word; }
-        th { background: #f1f5f9; color: #475569; font-size: 9px; }
-        .kanji { font-size: 16px; font-weight: bold; }
-        .ten-god-label { background: #4f46e5; color: white; padding: 1px 4px; border-radius: 2px; font-size: 9px; display: inline-block; margin-top: 2px; }
-        .comment-box { border: 1px solid #e2e8f0; padding: 8px; font-size: 10px; background: #fafafa; }
-        .nichiun-cell { border: 1px solid #cbd5e1; padding: 3px; font-size: 8px; vertical-align: top; height: 35px; }
+        .header {
+            border-bottom: 3px solid #4f46e5;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .section-title {
+            background: #eef2ff;
+            border-left: 6px solid #4f46e5;
+            padding: 4px 8px;
+            font-weight: 700;
+            margin: 15px 0 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 5px;
+            text-align: center;
+            word-wrap: break-word;
+        }
+
+        th {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .kanji {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .ten-god-label {
+            background: #4f46e5;
+            color: white;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 9px;
+            display: inline-block;
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        .comment-box {
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            font-size: 10px;
+            background: #fafafa;
+            font-weight: 400;
+        }
+
+        .nichiun-cell {
+            border: 1px solid #cbd5e1;
+            padding: 3px;
+            font-size: 8px;
+            vertical-align: top;
+            height: 35px;
+            font-weight: 400;
+        }
     </style>
 </head>
 <body>
@@ -43,7 +119,7 @@
         生年月日：{{ $user['birthday'] }}
     </div>
 
-    <div class="section-title">基本命式 (泰山流)</div>
+    <div class="section-title">基本命式</div>
     <table>
         <tr><th>時柱</th><th>日柱</th><th>月柱</th><th>年柱</th></tr>
         <tr>
@@ -91,9 +167,13 @@
         <tr>
             @foreach($week as $day)
             <td class="nichiun-cell">
-                <div style="font-weight: bold; color: #4f46e5; border-bottom: 1px solid #e2e8f0; margin-bottom: 2px;">{{ $day['day'] }}日</div>
-                {{ $day['kanji'] }}<br>
-                {{ $day['ten_god'] }}
+                <div style="font-weight: 700; color: #4f46e5; border-bottom: 1px solid #e2e8f0; margin-bottom: 2px;">{{ $day['day'] }}日</div>
+                <strong>{{ $day['kanji'] }}</strong><br>
+                <strong>{{ $day['ten_god'] }}</strong><br>
+                <!-- ↓ 追加：通変星に対応する解説文を表示 -->
+                <div style="font-size: 7px; color: #666; margin-top: 2px;">
+                    {{ $result['appraisal']['nichiun_meanings'][$day['ten_god']] ?? '' }}
+                </div>
             </td>
             @endforeach
             @if(count($week) < 7)
@@ -104,7 +184,7 @@
     </table>
 
     <div style="margin-top:20px; font-size:8px; text-align:center; color: #64748b;">
-        ※本鑑定書は四柱推命学（泰山流）に基づき算出されたものです。
+        ※本鑑定書は四柱推命学に基づき算出されたものです。
     </div>
 </body>
 </html>
