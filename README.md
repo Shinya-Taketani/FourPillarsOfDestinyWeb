@@ -58,3 +58,9 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
 # FourPillarsOfDestinyWeb-created-gemini
 
+## DB Initialization Notes
+
+- This project targets PostgreSQL 18. PostgreSQL-specific schema features such as `jsonb` are intentional, and SQLite compatibility is not a requirement.
+- `php artisan migrate --seed` should run the application seeders plus the Shichu Suimei master seeders from `DatabaseSeeder`.
+- TODO: `master_zokan_ratios` currently lacks `stem_id`. `element_id` alone is not enough for accurate hidden-stem judgement; add a focused migration in a later DB task.
+- TODO: `master_solar_terms` and the current solar-term seed data are provisional/verification data, not a confirmed Tenpo Jin'in calendar implementation. Add source/adoption fields such as `source_rank`, `adopted`, `source_url`, `timezone`, and `calendar_system` in a later calendar-data task.

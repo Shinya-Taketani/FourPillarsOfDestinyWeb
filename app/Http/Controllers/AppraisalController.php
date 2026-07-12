@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AppraisalPdfRequest;
 use App\Services\DestinyCalculationService;
-use Illuminate\Http\Request;
+use App\Support\PdfFileNameSanitizer;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Dompdf\Options;
 
 class AppraisalController extends Controller
 {
@@ -13,16 +13,17 @@ class AppraisalController extends Controller
         protected DestinyCalculationService $calculationService
     ) {}
 
-    public function downloadPdf(Request $request)
+    public function downloadPdf(AppraisalPdfRequest $request)
     {
-        // 1. 入力値の取得
-        $name = $request->input('name', '鑑定者');
-        $birthday = $request->input('birthday');
-        $longitude = (float) $request->input('longitude');
-        $gender = $request->input('gender', 'male');
+        $validated = $request->validatedForAnalysis();
+        $name = $validated['name'] !== '' ? $validated['name'] : '鑑定者';
 
-        // 2. 鑑定データの算出
-        $result = $this->calculationService->analyze($birthday, $longitude, $gender);
+        $result = $this->calculationService->analyze(
+            $validated['birth_datetime'],
+            $validated['longitude'],
+            $validated['gender'],
+            $validated['target_datetime'],
+        );
         
         $currentMonthIdx = (int)date('n') - 1; 
         $currentMonthData = $result['getsuun'][$currentMonthIdx] ?? $result['getsuun'][0];
@@ -30,8 +31,8 @@ class AppraisalController extends Controller
         $data = [
             'user' => [
                 'name' => $name,
-                'birthday' => $birthday,
-                'gender' => $gender === 'male' ? '男性' : '女性',
+                'birthday' => $validated['birth_datetime'],
+                'gender' => $validated['gender'] === 'male' ? '男性' : '女性',
             ],
             'result' => $result,
             'appraisal' => $result['appraisal'],
@@ -58,8 +59,7 @@ class AppraisalController extends Controller
         $pdf = Pdf::loadView('pdf.appraisal', $data)
             ->setPaper('a4', 'portrait');
 
-        $safeName = preg_replace('/[\\\\\/:*?"<>|\r\n]+/u', '_', trim($name));
-        $safeName = $safeName !== '' ? $safeName : '鑑定者';
+        $safeName = PdfFileNameSanitizer::part($name, '鑑定者');
 
         return $pdf->download('運命鑑定書_' . $safeName . '.pdf');
     }

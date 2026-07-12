@@ -1,0 +1,5 @@
+sample_id,birth_datetime,timezone,expected_calculation_date,expected_note
+DB2026_2259,2026-03-05 22:59:00,Asia/Tokyo,2026-03-05,23時前は当日
+DB2026_2300,2026-03-05 23:00:00,Asia/Tokyo,2026-03-06,23時以後は翌日
+DB2026_2330,2026-03-05 23:30:00,Asia/Tokyo,2026-03-06,23時以後は翌日
+DB2026_0000,2026-03-06 00:00:00,Asia/Tokyo,2026-03-06,翌日0時は同じ計算日

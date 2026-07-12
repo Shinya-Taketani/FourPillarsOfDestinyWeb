@@ -1,0 +1,7 @@
+sample_id,target_datetime,timezone,boundary_type,term_name,expected_relation,expected_note
+CB2026_LICHUN_BEFORE,2026-02-04 05:01:00,Asia/Tokyo,year,立春,before,立春前
+CB2026_LICHUN_AT,2026-02-04 05:02:00,Asia/Tokyo,year,立春,at_or_after,立春以後
+CB2026_KEICHITSU_BEFORE,2026-03-05 22:58:00,Asia/Tokyo,month,啓蟄,before,啓蟄前
+CB2026_KEICHITSU_AT,2026-03-05 22:59:00,Asia/Tokyo,month,啓蟄,at_or_after,啓蟄以後
+CB2026_HAKURO_BEFORE,2026-09-07 23:40:00,Asia/Tokyo,month,白露,before,白露前
+CB2026_HAKURO_AT,2026-09-07 23:41:00,Asia/Tokyo,month,白露,at_or_after,白露以後

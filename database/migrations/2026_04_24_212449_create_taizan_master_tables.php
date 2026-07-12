@@ -149,6 +149,5 @@ return new class extends Migration
         Schema::dropIfExists('master_branches');
         Schema::dropIfExists('master_stems');
         Schema::dropIfExists('master_elements');
-        Schema::dropIfExists('users');
     }
 };

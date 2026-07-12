@@ -6,6 +6,7 @@ namespace App\Services;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 readonly class ZokanService
 {
@@ -14,39 +15,44 @@ readonly class ZokanService
      */
     public function getZokanStemId(int $branchId, CarbonImmutable $lmtDateTime, ?string $solarTermStartedAt): int
     {
-        // 節入り時刻が不明な場合は、各支の「本気（代表的な干）」をデフォルトで返す
-        $defaults = [
-            1 => 10, 2 => 6, 3 => 1, 4 => 2, 5 => 5, 6 => 3,
-            7 => 4, 8 => 6, 9 => 7, 10 => 8, 11 => 5, 12 => 9
-        ];
-
-        if (!$solarTermStartedAt) return $defaults[$branchId] ?? 1;
-
-        $startedAt = CarbonImmutable::parse($solarTermStartedAt);
-        $diffDays = $startedAt->diffInDays($lmtDateTime);
-
         // データベースから配分を取得
         $ratios = DB::table('master_zokan_ratios')
             ->where('branch_id', $branchId)
             ->orderBy('id', 'asc')
             ->get();
 
-        // データがDBにない場合はデフォルト値を返す
-        if ($ratios->isEmpty()) return $defaults[$branchId] ?? 1;
+        if ($ratios->isEmpty()) {
+            throw new RuntimeException("Zokan ratios are not seeded for branch_id {$branchId}.");
+        }
+
+        if (!$solarTermStartedAt) {
+            $honki = $ratios->firstWhere('type', 'honki') ?? $ratios->last();
+
+            return $this->requireStemId($honki, $branchId);
+        }
+
+        $startedAt = CarbonImmutable::parse($solarTermStartedAt);
+        $diffDays = $startedAt->diffInDays($lmtDateTime);
 
         $currentDaysLimit = 0;
         foreach ($ratios as $ratio) {
-            // プロパティが存在するかチェックしながら加算（エラー回避）
-            $d = $ratio->days ?? 10;
-            $currentDaysLimit += $d;
+            $currentDaysLimit += (int)$ratio->days;
 
             if ($diffDays <= $currentDaysLimit) {
-                return (int)($ratio->stem_id ?? $defaults[$branchId]);
+                return $this->requireStemId($ratio, $branchId);
             }
         }
 
         // 期間を過ぎた場合は最後のデータを返す
-        $last = $ratios->last();
-        return (int)($last->stem_id ?? $defaults[$branchId]);
+        return $this->requireStemId($ratios->last(), $branchId);
+    }
+
+    private function requireStemId(object $ratio, int $branchId): int
+    {
+        if (!isset($ratio->stem_id) || $ratio->stem_id === null) {
+            throw new RuntimeException("Zokan stem_id is not set for branch_id {$branchId}.");
+        }
+
+        return (int)$ratio->stem_id;
     }
 }

@@ -17,9 +17,13 @@
 /public/build
 /public/hot
 /public/storage
+/storage/logs/*.log
 /storage/*.key
 /storage/pail
 /vendor
+*.dump
+*.sql
+*.sql.gz
 _ide_helper.php
 Homestead.json
 Homestead.yaml
@@ -27,5 +31,7 @@ Thumbs.db
 composer.lock
 package-lock.json
 /storage/fonts
-AGENT.md
-/docs/*
+AGENTS.md
+
+# Local documentation / private notes
+/docs/

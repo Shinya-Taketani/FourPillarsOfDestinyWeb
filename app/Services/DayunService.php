@@ -4,88 +4,165 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\CalendarDataUnavailableException;
 use Carbon\CarbonImmutable;
+use InvalidArgumentException;
 use Illuminate\Support\Facades\DB;
 
 readonly class DayunService
 {
-    public function __construct(private StarCalculationService $starService) {}
+    private const DIRECTION_FORWARD = 'forward';
+    private const DIRECTION_BACKWARD = 'backward';
+    private const CYCLE_COUNT = 10;
+    private const CYCLE_YEARS = 10;
+    private const SECONDS_PER_DAY = 86400;
 
-    public function calculate(array $yearPillar, array $monthPillar, int $dayStemId, CarbonImmutable $lmt, array $solar, string $gender): array
+    public function __construct(
+        private StarCalculationService $starService,
+        private SolarTermService $solarTermService,
+    ) {}
+
+    public function calculate(
+        array $yearPillar,
+        array $monthPillar,
+        int $dayStemId,
+        CarbonImmutable $birthDateTimeJst,
+        string $gender,
+    ): array {
+        $direction = $this->determineDirection((int)$yearPillar['stem_id'], $gender);
+        $basisTerm = $this->getBasisTerm($birthDateTimeJst, $direction);
+        $startAge = $this->calculateStartAge($birthDateTimeJst, CarbonImmutable::parse($basisTerm->started_at, $basisTerm->timezone));
+        $cycles = $this->buildCycles($monthPillar, $dayStemId, $direction, $startAge['start_age_years_decimal']);
+
+        return [
+            'direction' => $direction,
+            'is_forward' => $direction === self::DIRECTION_FORWARD,
+            'basis_term' => [
+                'name' => $basisTerm->term_name,
+                'started_at' => $basisTerm->started_at,
+                'timezone' => $basisTerm->timezone,
+            ],
+            'basis_term_name' => $basisTerm->term_name,
+            'basis_term_started_at' => $basisTerm->started_at,
+            'start_age' => $startAge['start_age_years'],
+            'start_age_full' => "{$startAge['start_age_years']}歳 {$startAge['start_age_months']}ヶ月",
+            'start_age_years_decimal' => $startAge['start_age_years_decimal'],
+            'start_age_years' => $startAge['start_age_years'],
+            'start_age_months' => $startAge['start_age_months'],
+            'calculation_note' => '3日=1年で換算。泰山流固有ルール要確認。',
+            'cycles' => $cycles,
+        ];
+    }
+
+    public function determineDirection(int $yearStemId, string|int $gender): string
     {
-        // 1. 順行・逆行の判定
-        $isYearYang = ($yearPillar['stem_id'] % 2 !== 0);
-        $isForward = ($gender === 'male') ? $isYearYang : !$isYearYang;
+        $normalizedGender = $this->normalizeGender($gender);
+        $isForward = $normalizedGender === 'male'
+            ? $this->isYangStem($yearStemId)
+            : !$this->isYangStem($yearStemId);
 
-        // 2. 精密な立運（開始年齢）の計算
-        // $solar['started_at'] は「その月の開始」
-        $birthTermStart = CarbonImmutable::parse($solar['started_at']);
-        
-        if ($isForward) {
-            // 順行：誕生日から「次の節入り」まで
-            // 検索範囲を誕生日の35日以内に限定し、2026年へのジャンプを完全に阻止
-            $nextTerm = DB::table('master_solar_terms')
-                ->where('started_at', '>', $lmt->toDateTimeString())
-                ->where('started_at', '<', $lmt->addDays(35)->toDateTimeString())
-                ->orderBy('started_at', 'asc')
-                ->first();
-            
-            // 万が一データがない場合でも、平均値（30.44日）で計算し、異常値を防ぐ
-            $targetDate = $nextTerm ? CarbonImmutable::parse($nextTerm->started_at) : $lmt->addDays(30);
-            $diffSeconds = $lmt->diffInSeconds($targetDate);
-        } else {
-            // 逆行：誕生日から「その月の節入り（開始）」まで遡る
-            $diffSeconds = $birthTermStart->diffInSeconds($lmt);
+        return $isForward ? self::DIRECTION_FORWARD : self::DIRECTION_BACKWARD;
+    }
+
+    public function isYangStem(int $stemId): bool
+    {
+        if ($stemId < 1 || $stemId > 10) {
+            throw new InvalidArgumentException('年干 ID が不正です。');
         }
 
-        /**
-         * 泰山流・精密立運算出
-         * 3日(259200秒) = 1年
-         * 1日(86400秒) = 4ヶ月 (1ヶ月 = 21600秒)
-         * 1時間(3600秒) = 5日 (1日 = 720秒)
-         */
-        $years = (int)($diffSeconds / 259200);
-        $rem = $diffSeconds % 259200;
-        
-        $months = (int)($rem / 21600);
-        $rem = $rem % 21600;
-        
-        $days = (int)($rem / 720);
+        return $stemId % 2 === 1;
+    }
 
-        $startAgeFull = "{$years}歳 {$months}ヶ月 {$days}日";
-        // リスト表示用：6ヶ月以上なら切り上げ（実務慣習）
-        $startAgeInt = ($months >= 6) ? $years + 1 : $years;
-        $startAgeInt = (int)max(1, $startAgeInt);
+    public function calculateStartAge(CarbonImmutable $birthDateTimeJst, CarbonImmutable $basisTermDateTime): array
+    {
+        // TODO: 起運年齢の細かい日・時刻換算は泰山流固有ルール要確認。
+        $diffSeconds = abs($birthDateTimeJst->diffInSeconds($basisTermDateTime, false));
+        $diffDays = $diffSeconds / self::SECONDS_PER_DAY;
+        $startAgeYearsDecimal = round($diffDays / 3, 4);
+        $totalMonths = (int) round($startAgeYearsDecimal * 12);
 
-        // 3. 10期分の大運干支を生成
+        return [
+            'start_age_years_decimal' => $startAgeYearsDecimal,
+            'start_age_years' => intdiv($totalMonths, 12),
+            'start_age_months' => $totalMonths % 12,
+        ];
+    }
+
+    private function getBasisTerm(CarbonImmutable $birthDateTimeJst, string $direction): object
+    {
+        // 起運計算の正節比較は、採用済み solar_term_events の JST 時刻で行う。
+        $event = $direction === self::DIRECTION_FORWARD
+            ? $this->solarTermService->getNextMonthBoundaryEvent($birthDateTimeJst)
+            : $this->solarTermService->getPreviousMonthBoundaryEvent($birthDateTimeJst);
+
+        if ($event === null) {
+            throw CalendarDataUnavailableException::forMonthBoundary($birthDateTimeJst->toDateTimeString());
+        }
+
+        return $event;
+    }
+
+    private function buildCycles(array $monthPillar, int $dayStemId, string $direction, float $startAgeYearsDecimal): array
+    {
+        $currentStemId = (int)($monthPillar['stem_id'] ?? 0);
+        $currentBranchId = (int)($monthPillar['branch_id'] ?? 0);
+
+        if ($currentStemId < 1 || $currentStemId > 10 || $currentBranchId < 1 || $currentBranchId > 12) {
+            throw new InvalidArgumentException('月柱が不正です。');
+        }
+
         $cycles = [];
-        $currentStemId = $monthPillar['stem_id'];
-        $currentBranchId = $monthPillar['branch_id'];
 
-        for ($i = 0; $i < 10; $i++) {
-            if ($isForward) {
-                $currentStemId = ($currentStemId % 10) + 1;
-                $currentBranchId = ($currentBranchId % 12) + 1;
-            } else {
-                $currentStemId = ($currentStemId === 1) ? 10 : $currentStemId - 1;
-                $currentBranchId = ($currentBranchId === 1) ? 12 : $currentBranchId - 1;
-            }
-
+        for ($i = 0; $i < self::CYCLE_COUNT; $i++) {
+            [$currentStemId, $currentBranchId] = $this->movePillar($currentStemId, $currentBranchId, $direction);
+            $startAge = round($startAgeYearsDecimal + ($i * self::CYCLE_YEARS), 4);
+            $endAge = round($startAge + self::CYCLE_YEARS, 4);
             $stemName = DB::table('master_stems')->where('id', $currentStemId)->value('name');
             $branchName = DB::table('master_branches')->where('id', $currentBranchId)->value('name');
 
+            if ($stemName === null || $branchName === null) {
+                throw new InvalidArgumentException('干支マスターが不足しています。');
+            }
+
+            // TODO: 泰山流の大運起点は月柱の次/前でよいか要確認。
             $cycles[] = [
-                'age' => $startAgeInt + ($i * 10),
-                'kanji' => ($stemName ?? '') . ($branchName ?? ''),
+                'index' => $i + 1,
+                'pillar' => $stemName . $branchName,
+                'kanji' => $stemName . $branchName,
+                'stem_id' => $currentStemId,
+                'branch_id' => $currentBranchId,
+                'stem_name' => $stemName,
+                'branch_name' => $branchName,
+                'start_age_years' => $startAge,
+                'end_age_years' => $endAge,
+                'start_age_months' => (int) round($startAge * 12),
+                'direction' => $direction,
+                'age' => (int) floor($startAge),
                 'ten_god' => $this->starService->getTenGod($dayStemId, $currentStemId),
             ];
         }
 
+        return $cycles;
+    }
+
+    private function movePillar(int $stemId, int $branchId, string $direction): array
+    {
+        if ($direction === self::DIRECTION_FORWARD) {
+            return [($stemId % 10) + 1, ($branchId % 12) + 1];
+        }
+
         return [
-            'is_forward' => $isForward,
-            'start_age' => $startAgeInt,
-            'start_age_full' => $startAgeFull,
-            'cycles' => $cycles,
+            $stemId === 1 ? 10 : $stemId - 1,
+            $branchId === 1 ? 12 : $branchId - 1,
         ];
+    }
+
+    private function normalizeGender(string|int $gender): string
+    {
+        return match ($gender) {
+            'male', 'm', '1', 1 => 'male',
+            'female', 'f', '2', 2 => 'female',
+            default => throw new InvalidArgumentException('gender は male/female/1/2 のいずれかで指定してください。'),
+        };
     }
 }

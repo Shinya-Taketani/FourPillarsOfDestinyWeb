@@ -20,37 +20,67 @@ readonly class DestinyCalculationService
         private DayunService $dayunService,
         private SaiunService $saiunService,
         private GetsuunService $getsuunService,
+        private RyunenService $ryunenService,
     ) {}
 
-    public function analyze(string $birthDate, float $longitude, string $gender = 'male'): array
+    public function analyze(string $birthDate, float $longitude, string $gender = 'male', string|CarbonImmutable|null $targetDateTime = null): array
     {
-        $lmt = $this->lmtService->calculate(CarbonImmutable::parse($birthDate), $longitude);
-        $solar = $this->solarService->getSolarInfo($lmt);
-        $dayPillar = $this->sexagenaryService->getDayPillar($lmt);
-        $yearPillar = $this->sexagenaryService->getYearPillar($lmt, $solar);
+        $birthDateTimeJst = CarbonImmutable::parse($birthDate);
+        $birthDateTimeLmt = $this->lmtService->calculate($birthDateTimeJst, $longitude);
+        $targetDateTimeJst = $targetDateTime instanceof CarbonImmutable
+            ? $targetDateTime
+            : CarbonImmutable::parse($targetDateTime ?? now());
+
+        // 節入りイベントは Asia/Tokyo の採用済み時刻なので、年柱・月柱は JST で比較する。
+        $dateTimeForYearMonth = $birthDateTimeJst;
+        // 現行仕様では、日柱の 23:00 日界と時柱の時支判定は LMT 補正後日時で行う。
+        $dateTimeForDayHour = $birthDateTimeLmt;
+
+        $dayPillar = $this->sexagenaryService->getDayPillar($dateTimeForDayHour);
+        $yearPillar = $this->sexagenaryService->getYearPillar($dateTimeForYearMonth);
+        $monthPillar = $this->sexagenaryService->getMonthPillar($dateTimeForYearMonth, $yearPillar['stem_id']);
+        $solar = [
+            'term_name' => $monthPillar['solar_term_name'],
+            'month_stem_id' => $monthPillar['stem_id'],
+            'month_branch_id' => $monthPillar['branch_id'],
+            'started_at' => $monthPillar['started_at'],
+        ];
         
         $pillarIds = [
             'year' => $yearPillar,
-            'month' => ['stem_id' => $solar['month_stem_id'], 'branch_id' => $solar['month_branch_id']],
+            'month' => ['stem_id' => $monthPillar['stem_id'], 'branch_id' => $monthPillar['branch_id']],
             'day' => $dayPillar,
-            'hour' => $this->sexagenaryService->getHourPillar($lmt, $dayPillar['stem_id']),
+            'hour' => $this->sexagenaryService->getHourPillar($dateTimeForDayHour, $dayPillar['stem_id']),
         ];
 
         $res = [
-            'lmt_datetime' => $lmt->toDateTimeString(),
+            'lmt_datetime' => $birthDateTimeLmt->toDateTimeString(),
             'solar_term' => $solar['term_name'],
             'pillars' => [
-                'year' => $this->format($pillarIds['year'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
-                'month' => $this->format($pillarIds['month'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
-                'day' => $this->format($pillarIds['day'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
-                'hour' => $this->format($pillarIds['hour'], $dayPillar['stem_id'], $lmt, $solar['started_at']),
+                'year' => $this->format($pillarIds['year'], $dayPillar['stem_id'], $birthDateTimeLmt, $solar['started_at']),
+                'month' => $this->format($pillarIds['month'], $dayPillar['stem_id'], $birthDateTimeLmt, $solar['started_at']),
+                'day' => $this->format($pillarIds['day'], $dayPillar['stem_id'], $birthDateTimeLmt, $solar['started_at']),
+                'hour' => $this->format($pillarIds['hour'], $dayPillar['stem_id'], $birthDateTimeLmt, $solar['started_at']),
             ],
             'five_elements_scores' => $this->strengthService->calculate($pillarIds, (int)$solar['month_branch_id']),
         ];
 
-        $res['saiun'] = $this->saiunService->calculate(2026, $dayPillar['stem_id']);
-        $res['getsuun'] = $this->getsuunService->calculate(2026, $dayPillar['stem_id']);
-        $res['dayun'] = $this->dayunService->calculate($yearPillar, $pillarIds['month'], $dayPillar['stem_id'], $lmt, $solar, $gender);
+        $ryunen = $this->ryunenService->getRyunenPillarByDateTime($targetDateTimeJst, $dayPillar['stem_id']);
+        $res['saiun'] = $this->saiunService->calculate($ryunen['year'], $dayPillar['stem_id']);
+        $res['getsuun'] = $this->getsuunService->calculate($ryunen['year'], $dayPillar['stem_id']);
+        $res['dayun'] = $this->dayunService->calculate(
+            $yearPillar,
+            $pillarIds['month'],
+            $dayPillar['stem_id'],
+            $birthDateTimeJst,
+            $gender,
+        );
+        $res['ryunen'] = $this->ryunenService->getRyunenWithActiveDayun(
+            $birthDateTimeJst,
+            $targetDateTimeJst,
+            $res['dayun']['cycles'],
+            $dayPillar['stem_id'],
+        );
         $res['appraisal'] = $this->appraisalService->generate($res, $res['five_elements_scores']);
 
         return $res;

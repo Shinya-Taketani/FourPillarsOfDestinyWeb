@@ -21,5 +21,13 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        $this->call([
+            TaizanMasterSeeder::class,
+            SolarTermDefinitionSeeder::class,
+            SolarTermEventSeeder::class,
+            SolarTermSeeder2::class,
+            TaizanJudgmentSeeder::class,
+        ]);
     }
 }

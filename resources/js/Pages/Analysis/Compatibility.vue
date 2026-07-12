@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import axios from 'axios';
 import { Radar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler } from 'chart.js';
+import { useValidationErrors } from '@/composables/useValidationErrors';
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
@@ -11,6 +12,15 @@ const person1 = ref({ name: '自分', birthday: '1980-01-01T09:00', longitude: 1
 const person2 = ref({ name: '相手', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'female' });
 const result = ref(null);
 const loading = ref(false);
+const pdfLoading = ref(false);
+const {
+    generalError,
+    clearErrors,
+    getFieldError,
+    getAnyFieldError,
+    hasFieldError,
+    setErrorsFromAxiosError,
+} = useValidationErrors();
 
 const regions = [
     { label: '北海道・東北', cities: [{n:'北海道', l:141.35}, {n:'青森', l:140.74}, {n:'岩手', l:141.15}, {n:'宮城', l:140.87}, {n:'秋田', l:140.10}, {n:'山形', l:140.34}, {n:'福島', l:140.47}] },
@@ -23,12 +33,46 @@ const regions = [
 
 const setCityLng = (p, l) => { p.longitude = l; };
 
+const compatibilityPayload = () => ({
+    person1: person1.value,
+    person2: person2.value,
+});
+
 const submit = async () => {
     loading.value = true;
+    clearErrors();
+
     try {
-        const response = await axios.post('/api/analyze-compatibility', { person1: person1.value, person2: person2.value });
+        const response = await axios.post('/api/analyze-compatibility', compatibilityPayload());
         result.value = response.data.data;
-    } catch (error) { alert('鑑定エラーが発生しました。'); } finally { loading.value = false; }
+    } catch (error) {
+        await setErrorsFromAxiosError(error, '相性鑑定エラーが発生しました。');
+    } finally { loading.value = false; }
+};
+
+const downloadBlob = (blob, fileName) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+};
+
+const downloadPdf = async () => {
+    pdfLoading.value = true;
+    clearErrors();
+
+    try {
+        const response = await axios.post('/compatibility/pdf', compatibilityPayload(), { responseType: 'blob' });
+        downloadBlob(response.data, '相性鑑定書.pdf');
+    } catch (error) {
+        await setErrorsFromAxiosError(error, 'PDFの生成に失敗しました。');
+    } finally {
+        pdfLoading.value = false;
+    }
 };
 
 const chartData = computed(() => {
@@ -48,6 +92,10 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
     <Head title="相性精密鑑定" />
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen font-sans">
         <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">相性精密鑑定</h1>
+
+        <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            {{ generalError }}
+        </div>
         
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
             <div v-for="(p, i) in [person1, person2]" :key="i" class="bg-white p-8 rounded-2xl shadow-xl border-t-8 transition-all hover:shadow-2xl" :class="i===0?'border-indigo-500':'border-red-500'">
@@ -57,11 +105,27 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                 </div>
                 
                 <div class="space-y-4 mb-6">
-                    <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">氏名</span><input v-model="p.name" type="text" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none"></div>
-                    <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">生年月日</span><input v-model="p.birthday" type="datetime-local" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-400 mb-1 ml-1">氏名</span>
+                        <input v-model="p.name" type="text" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none" :class="hasFieldError(`person${i+1}.name`) ? 'border-red-500' : ''">
+                        <p v-if="getFieldError(`person${i+1}.name`)" class="mt-1 text-sm font-bold text-red-600">{{ getFieldError(`person${i+1}.name`) }}</p>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-400 mb-1 ml-1">生年月日</span>
+                        <input v-model="p.birthday" type="datetime-local" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none" :class="getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`]) ? 'border-red-500' : ''">
+                        <p v-if="getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`])" class="mt-1 text-sm font-bold text-red-600">{{ getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`]) }}</p>
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">性別</span><select v-model="p.gender" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none"><option value="male">男性</option><option value="female">女性</option></select></div>
-                        <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">経度</span><input v-model="p.longitude" type="number" step="0.01" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none text-indigo-600"></div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-400 mb-1 ml-1">性別</span>
+                            <select v-model="p.gender" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none" :class="hasFieldError(`person${i+1}.gender`) ? 'border-red-500' : ''"><option value="male">男性</option><option value="female">女性</option></select>
+                            <p v-if="getFieldError(`person${i+1}.gender`)" class="mt-1 text-sm font-bold text-red-600">{{ getFieldError(`person${i+1}.gender`) }}</p>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-400 mb-1 ml-1">経度</span>
+                            <input v-model="p.longitude" type="number" step="0.01" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none text-indigo-600" :class="hasFieldError(`person${i+1}.longitude`) ? 'border-red-500' : ''">
+                            <p v-if="getFieldError(`person${i+1}.longitude`)" class="mt-1 text-sm font-bold text-red-600">{{ getFieldError(`person${i+1}.longitude`) }}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -88,21 +152,9 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
         </button>
 
         <div v-if="result" class="mt-4">
-            <form :action="route('compatibility.pdf')" method="POST" target="_blank">
-                <input type="hidden" name="_token" :value="$page.props.csrf_token">
-                <!-- 1人目のデータ -->
-                <input type="hidden" name="person1[name]" :value="person1.name">
-                <input type="hidden" name="person1[birthday]" :value="person1.birthday">
-                <input type="hidden" name="person1[longitude]" :value="person1.longitude">
-                <input type="hidden" name="person1[gender]" :value="person1.gender">
-                <!-- 2人目のデータ -->
-                <input type="hidden" name="person2[name]" :value="person2.name">
-                <input type="hidden" name="person2[birthday]" :value="person2.birthday">
-                <input type="hidden" name="person2[longitude]" :value="person2.longitude">
-                <input type="hidden" name="person2[gender]" :value="person2.gender">
-
-                <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-6 rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3">
-                    <span>鑑定書をPDFで保存する</span>
+            <form @submit.prevent="downloadPdf">
+                <button type="submit" :disabled="pdfLoading" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-6 rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:bg-gray-400">
+                    <span>{{ pdfLoading ? 'PDF生成中...' : '鑑定書をPDFで保存する' }}</span>
                 </button>
             </form>
         </div>

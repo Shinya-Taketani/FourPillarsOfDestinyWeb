@@ -61,7 +61,7 @@ readonly class AppraisalService
             '偏印' => '知的好奇心が刺激される年。習い事や旅行、副業など、新しい世界に飛び込むことで発見があります。',
             '印綬' => '学びと癒やしの一年。周囲からの援助を受けやすく、精神的に落ち着いた豊かな時間を過ごせます。',
         ];
-        return $meanings[$tenGod] ?? '2026年を活かして前進できる一年です。';
+        return $meanings[$tenGod] ?? '対象年を活かして前進できる一年です。';
     }
 
     private function getPersonality(string $dayStem): string

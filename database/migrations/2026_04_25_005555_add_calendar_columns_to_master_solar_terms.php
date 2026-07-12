@@ -24,7 +24,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('master_solar_terms', function (Blueprint $table) {
-            //
+            $table->dropColumn([
+                'started_at',
+                'month_stem_id',
+                'month_branch_id',
+            ]);
         });
     }
 };

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\CalendarDataUnavailableException;
 use Carbon\CarbonImmutable;
 
 /**
@@ -11,25 +12,16 @@ use Carbon\CarbonImmutable;
  */
 readonly class SexagenaryService
 {
+    public function __construct(
+        private SolarTermService $solarTermService,
+    ) {}
+
     /**
      * 年の干支を算出
-     * 節入り判定の結果（立春を過ぎているか）を引数で受け取る
      */
-    public function getYearPillar(CarbonImmutable $date, array $solarInfo): array
+    public function getYearPillar(CarbonImmutable $date): array
     {
-        $year = $date->year;
-
-        /**
-         * 泰山流：立春の「時刻」を過ぎて初めて新年となる。
-         * 1月や2月の節入り前なら前年として計算する。
-         */
-        // DB上の最新の節入りが「立春」より前（＝まだ今年の立春に到達していない）なら前年
-        // ※DB設計によりますが、ここではシンプルに判定ロジックを整理
-        if ($date->month <= 2 && !str_contains($solarInfo['term_name'], '立春') && $date->month != 3) {
-             // 厳密には「現在の最新の節入り」が立春のインデックスでない場合は前年
-             // ここでは簡易的に「2月なのに立春データが取れていない」＝前年とみなす
-             $year--;
-        }
+        $year = $this->getPillarYear($date);
 
         $index = ($year - 3) % 60;
         if ($index <= 0) $index += 60;
@@ -37,19 +29,68 @@ readonly class SexagenaryService
         return $this->splitIndex($index);
     }
 
+    public function getPillarYear(CarbonImmutable $date): int
+    {
+        $lichun = $this->solarTermService->getLichunDateTime($date->year);
+
+        if ($lichun === null) {
+            throw CalendarDataUnavailableException::forLichun($date->year);
+        }
+
+        $localDate = CarbonImmutable::parse($date->toDateTimeString(), $lichun->timezoneName);
+
+        return $localDate->lt($lichun) ? $date->year - 1 : $date->year;
+    }
+
+    public function getMonthPillar(CarbonImmutable $date, int $yearStemId): array
+    {
+        $event = $this->solarTermService->getLatestMonthBoundaryEvent($date);
+
+        if ($event === null) {
+            throw CalendarDataUnavailableException::forMonthBoundary($date->toDateTimeString());
+        }
+
+        $branchId = (int)$event->month_branch_id;
+        $startStemId = (($yearStemId - 1) % 5) * 2 + 3;
+
+        if ($startStemId > 10) {
+            $startStemId -= 10;
+        }
+
+        $offset = $branchId - 3;
+        if ($offset < 0) {
+            $offset += 12;
+        }
+
+        return [
+            'stem_id' => (($startStemId + $offset - 1) % 10) + 1,
+            'branch_id' => $branchId,
+            'solar_term_name' => $event->term_name,
+            'started_at' => $event->started_at,
+        ];
+    }
+
     public function getDayPillar(CarbonImmutable $date): array
     {
         $baseDate = CarbonImmutable::create(1900, 1, 31);
-        $diffDays = $baseDate->diffInDays($date);
+        $calculationDate = $this->getDayPillarCalculationDate($date);
+        $diffDays = $baseDate->diffInDays($calculationDate);
         $index = ($diffDays % 60) + 1;
 
         return $this->splitIndex((int)$index);
     }
 
+    public function getDayPillarCalculationDate(CarbonImmutable $date): CarbonImmutable
+    {
+        // TODO: 日界判定に使う時刻基準は LMT 補正後でよいか要確認。
+        return $date->hour >= 23
+            ? $date->addDay()->startOfDay()
+            : $date->startOfDay();
+    }
+
     public function getHourPillar(CarbonImmutable $date, int $dayStemId): array
     {
-        $hour = $date->hour;
-        $branchId = (int)(($hour + 1) / 2) % 12 + 1;
+        $branchId = $this->resolveHourBranchId($date);
 
         $baseStemByDay = [
             1 => 1, 6 => 1, 2 => 3, 7 => 3, 3 => 5, 
@@ -60,6 +101,25 @@ readonly class SexagenaryService
         $stemId = ($startStemId + $branchId - 2) % 10 + 1;
 
         return ['stem_id' => $stemId, 'branch_id' => $branchId];
+    }
+
+    public function resolveHourBranchId(CarbonImmutable $date): int
+    {
+        // TODO: 時支判定に使う時刻基準は LMT 補正後でよいか要確認。
+        return match (true) {
+            $date->hour === 23 || $date->hour === 0 => 1, // 子: 23:00-00:59
+            $date->hour < 3 => 2, // 丑: 01:00-02:59
+            $date->hour < 5 => 3, // 寅: 03:00-04:59
+            $date->hour < 7 => 4, // 卯: 05:00-06:59
+            $date->hour < 9 => 5, // 辰: 07:00-08:59
+            $date->hour < 11 => 6, // 巳: 09:00-10:59
+            $date->hour < 13 => 7, // 午: 11:00-12:59
+            $date->hour < 15 => 8, // 未: 13:00-14:59
+            $date->hour < 17 => 9, // 申: 15:00-16:59
+            $date->hour < 19 => 10, // 酉: 17:00-18:59
+            $date->hour < 21 => 11, // 戌: 19:00-20:59
+            default => 12, // 亥: 21:00-22:59
+        };
     }
 
     private function splitIndex(int $index): array
