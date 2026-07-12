@@ -27,3 +27,5 @@ Thumbs.db
 composer.lock
 package-lock.json
 /storage/fonts
+AGENT.md
+/docs/*
