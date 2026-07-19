@@ -67,6 +67,13 @@ readonly class SexagenaryService
             'branch_id' => $branchId,
             'solar_term_name' => $event->term_name,
             'started_at' => $event->started_at,
+            'timezone' => $event->timezone,
+            'calendar_system' => $event->calendar_system,
+            'source_title' => $event->source_title,
+            'source_url' => $event->source_url,
+            'source_rank' => $event->source_rank,
+            'adopted' => (bool) $event->adopted,
+            'note' => $event->note,
         ];
     }
 

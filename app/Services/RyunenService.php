@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\CalendarDataUnavailableException;
+use App\Repositories\MasterDataRepository;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 
 readonly class RyunenService
 {
     public function __construct(
         private SolarTermService $solarTermService,
         private StarCalculationService $starService,
+        private InterpretationDictionaryService $dictionary,
+        private MasterDataRepository $masterData,
     ) {}
 
     public function getRyunenPillarByYear(int $year, ?int $dayStemId = null): array
@@ -24,8 +26,8 @@ readonly class RyunenService
 
         $stemId = $index % 10 ?: 10;
         $branchId = $index % 12 ?: 12;
-        $stemName = DB::table('master_stems')->where('id', $stemId)->value('name');
-        $branchName = DB::table('master_branches')->where('id', $branchId)->value('name');
+        $stemName = $this->masterData->getStemById($stemId)?->name;
+        $branchName = $this->masterData->getBranchById($branchId)?->name;
 
         return [
             'year' => $year,
@@ -33,8 +35,8 @@ readonly class RyunenService
             'branch_id' => $branchId,
             'stem_name' => $stemName,
             'branch_name' => $branchName,
-            'pillar' => ($stemName ?? '') . ($branchName ?? ''),
-            'kanji' => ($stemName ?? '') . ($branchName ?? ''),
+            'pillar' => ($stemName ?? '').($branchName ?? ''),
+            'kanji' => ($stemName ?? '').($branchName ?? ''),
             'ten_god' => $dayStemId === null ? null : $this->starService->getTenGod($dayStemId, $stemId),
             'twelve_life_stage' => $dayStemId === null ? null : $this->starService->getTwelveLifeStage($dayStemId, $branchId),
         ];
@@ -66,8 +68,8 @@ readonly class RyunenService
     public function findActiveDayunByAge(array $dayunCycles, float $age): ?array
     {
         foreach ($dayunCycles as $cycle) {
-            $startAge = (float)($cycle['start_age_years'] ?? $cycle['age'] ?? 0);
-            $endAge = (float)($cycle['end_age_years'] ?? ($startAge + 10));
+            $startAge = (float) ($cycle['start_age_years'] ?? $cycle['age'] ?? 0);
+            $endAge = (float) ($cycle['end_age_years'] ?? ($startAge + 10));
 
             if ($age >= $startAge && $age < $endAge) {
                 return $cycle;
@@ -94,7 +96,7 @@ readonly class RyunenService
             'ryunen_pillar' => $this->getRyunenPillarByYear($ryunenYear, $dayStemId),
             'active_dayun' => $this->findActiveDayunByAge($dayunCycles, $age),
             // TODO: 流年通変星と大運の吉凶評価接続は次回以降。
-            'calculation_note' => '流年は adopted=true の立春基準。吉凶判断は未実装。',
+            'calculation_note' => $this->dictionary->text('calculation_notes.ryunen_active_dayun', 'calculation_notes.ryunen_active_dayun'),
         ];
     }
 }

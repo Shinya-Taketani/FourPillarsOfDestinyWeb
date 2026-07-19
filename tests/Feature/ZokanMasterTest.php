@@ -69,4 +69,26 @@ class ZokanMasterTest extends TestCase
             $this->assertSame((int)$expectedStemId, $actualStemId);
         }
     }
+
+    public function test_zokan_service_reuses_ratios_for_repeated_lookups(): void
+    {
+        $this->seed(TaizanMasterSeeder::class);
+        $queries = [];
+
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $service = app(ZokanService::class);
+        $startedAt = '2026-01-01 00:00:00';
+        $dateTime = CarbonImmutable::parse($startedAt)->addDays(15);
+
+        $service->getZokanStemId(1, $dateTime, $startedAt);
+        $service->getZokanStemId(1, $dateTime, $startedAt);
+
+        $this->assertSame(1, count(array_filter(
+            $queries,
+            static fn (string $sql): bool => str_contains($sql, 'master_zokan_ratios'),
+        )));
+    }
 }

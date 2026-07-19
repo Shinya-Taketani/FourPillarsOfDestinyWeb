@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Repositories\MasterDataRepository;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 readonly class ZokanService
 {
+    public function __construct(
+        private MasterDataRepository $masterData,
+    ) {}
+
     /**
      * 地支と節入りからの経過日数から、蔵干（天干ID）を特定する
      */
     public function getZokanStemId(int $branchId, CarbonImmutable $lmtDateTime, ?string $solarTermStartedAt): int
     {
-        // データベースから配分を取得
-        $ratios = DB::table('master_zokan_ratios')
-            ->where('branch_id', $branchId)
-            ->orderBy('id', 'asc')
-            ->get();
+        $ratios = $this->masterData->zokanRatiosByBranchId()->get($branchId, collect());
 
         if ($ratios->isEmpty()) {
             throw new RuntimeException("Zokan ratios are not seeded for branch_id {$branchId}.");

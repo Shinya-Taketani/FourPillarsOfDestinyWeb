@@ -60,7 +60,7 @@ return new class extends Migration
         });
 
         Schema::create('master_seasonal_multipliers', function (Blueprint $table) {
-            $table->comment('季節倍率：天保元始暦に基づく旺相死囚休の力量倍率');
+            $table->comment('季節倍率：旺相死囚休の検証用倍率。出典・採用可否は要確認');
             $table->id();
             $table->integer('season_id')->comment('季節ID');
             $table->foreignId('element_id')->comment('対象五行ID')->constrained('master_elements');

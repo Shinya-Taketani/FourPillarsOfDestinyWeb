@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\CalendarDataUnavailableException;
+use App\Repositories\MasterDataRepository;
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
-use Illuminate\Support\Facades\DB;
 
 readonly class DayunService
 {
     private const DIRECTION_FORWARD = 'forward';
+
     private const DIRECTION_BACKWARD = 'backward';
+
     private const CYCLE_COUNT = 10;
+
     private const CYCLE_YEARS = 10;
+
     private const SECONDS_PER_DAY = 86400;
 
     public function __construct(
         private StarCalculationService $starService,
         private SolarTermService $solarTermService,
+        private InterpretationDictionaryService $dictionary,
+        private MasterDataRepository $masterData,
     ) {}
 
     public function calculate(
@@ -29,7 +35,7 @@ readonly class DayunService
         CarbonImmutable $birthDateTimeJst,
         string $gender,
     ): array {
-        $direction = $this->determineDirection((int)$yearPillar['stem_id'], $gender);
+        $direction = $this->determineDirection((int) $yearPillar['stem_id'], $gender);
         $basisTerm = $this->getBasisTerm($birthDateTimeJst, $direction);
         $startAge = $this->calculateStartAge($birthDateTimeJst, CarbonImmutable::parse($basisTerm->started_at, $basisTerm->timezone));
         $cycles = $this->buildCycles($monthPillar, $dayStemId, $direction, $startAge['start_age_years_decimal']);
@@ -49,7 +55,7 @@ readonly class DayunService
             'start_age_years_decimal' => $startAge['start_age_years_decimal'],
             'start_age_years' => $startAge['start_age_years'],
             'start_age_months' => $startAge['start_age_months'],
-            'calculation_note' => '3日=1年で換算。泰山流固有ルール要確認。',
+            'calculation_note' => $this->dictionary->text('calculation_notes.dayun_start_age', 'calculation_notes.dayun_start_age'),
             'cycles' => $cycles,
         ];
     }
@@ -59,7 +65,7 @@ readonly class DayunService
         $normalizedGender = $this->normalizeGender($gender);
         $isForward = $normalizedGender === 'male'
             ? $this->isYangStem($yearStemId)
-            : !$this->isYangStem($yearStemId);
+            : ! $this->isYangStem($yearStemId);
 
         return $isForward ? self::DIRECTION_FORWARD : self::DIRECTION_BACKWARD;
     }
@@ -104,8 +110,8 @@ readonly class DayunService
 
     private function buildCycles(array $monthPillar, int $dayStemId, string $direction, float $startAgeYearsDecimal): array
     {
-        $currentStemId = (int)($monthPillar['stem_id'] ?? 0);
-        $currentBranchId = (int)($monthPillar['branch_id'] ?? 0);
+        $currentStemId = (int) ($monthPillar['stem_id'] ?? 0);
+        $currentBranchId = (int) ($monthPillar['branch_id'] ?? 0);
 
         if ($currentStemId < 1 || $currentStemId > 10 || $currentBranchId < 1 || $currentBranchId > 12) {
             throw new InvalidArgumentException('月柱が不正です。');
@@ -117,8 +123,8 @@ readonly class DayunService
             [$currentStemId, $currentBranchId] = $this->movePillar($currentStemId, $currentBranchId, $direction);
             $startAge = round($startAgeYearsDecimal + ($i * self::CYCLE_YEARS), 4);
             $endAge = round($startAge + self::CYCLE_YEARS, 4);
-            $stemName = DB::table('master_stems')->where('id', $currentStemId)->value('name');
-            $branchName = DB::table('master_branches')->where('id', $currentBranchId)->value('name');
+            $stemName = $this->masterData->getStemById($currentStemId)?->name;
+            $branchName = $this->masterData->getBranchById($currentBranchId)?->name;
 
             if ($stemName === null || $branchName === null) {
                 throw new InvalidArgumentException('干支マスターが不足しています。');
@@ -127,8 +133,8 @@ readonly class DayunService
             // TODO: 泰山流の大運起点は月柱の次/前でよいか要確認。
             $cycles[] = [
                 'index' => $i + 1,
-                'pillar' => $stemName . $branchName,
-                'kanji' => $stemName . $branchName,
+                'pillar' => $stemName.$branchName,
+                'kanji' => $stemName.$branchName,
                 'stem_id' => $currentStemId,
                 'branch_id' => $currentBranchId,
                 'stem_name' => $stemName,

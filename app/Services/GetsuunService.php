@@ -4,20 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Repositories\MasterDataRepository;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 
 readonly class GetsuunService
 {
     public function __construct(
         private StarCalculationService $starService,
-        private SexagenaryService $sexagenaryService
+        private SexagenaryService $sexagenaryService,
+        private MasterDataRepository $masterData,
     ) {}
 
     public function calculate(int $year, int $dayStemId): array
     {
-        $stems = DB::table('master_stems')->pluck('name', 'id');
-        $branches = DB::table('master_branches')->pluck('name', 'id');
+        $stems = $this->masterData->stemsById();
+        $branches = $this->masterData->branchesById();
 
         $monthStems = [7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8]; 
         $monthBranches = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
@@ -35,14 +36,14 @@ readonly class GetsuunService
                 $dp = $this->sexagenaryService->getDayPillar($cur);
                 $days[] = [
                     'day' => $cur->day,
-                    'kanji' => ($stems[$dp['stem_id']] ?? '') . ($branches[$dp['branch_id']] ?? ''),
+                    'kanji' => ($stems->get($dp['stem_id'])?->name ?? '').($branches->get($dp['branch_id'])?->name ?? ''),
                     'ten_god' => $this->starService->getTenGod($dayStemId, $dp['stem_id']),
                 ];
             }
 
             $months[] = [
                 'month_name' => $name,
-                'kanji' => ($stems[$monthStems[$i]] ?? '') . ($branches[$monthBranches[$i]] ?? ''),
+                'kanji' => ($stems->get($monthStems[$i])?->name ?? '').($branches->get($monthBranches[$i])?->name ?? ''),
                 'ten_god' => $this->starService->getTenGod($dayStemId, $monthStems[$i]),
                 'days' => $days,
             ];

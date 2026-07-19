@@ -20,7 +20,65 @@ class AnalysisValidationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('target_name', '検証者');
+            ->assertJsonPath('target_name', '検証者')
+            ->assertJsonPath('data.schema_version', 1)
+            ->assertJsonPath('data.status', 'calculated')
+            ->assertJsonPath('data.calculation_metadata.calendar_policy.day_boundary', '23:00')
+            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S')
+            ->assertJsonPath('data.calculation_metadata.solar_term_adopted', true)
+            ->assertJsonCount(5, 'data.five_elements_scores')
+            ->assertJsonStructure([
+                'data' => [
+                    'calculation_metadata',
+                    'chart' => [
+                        'year' => ['stem_id', 'branch_id', 'stem_name', 'branch_name', 'pillar'],
+                        'month' => ['stem_id', 'branch_id', 'stem_name', 'branch_name', 'pillar'],
+                        'day' => ['stem_id', 'branch_id', 'stem_name', 'branch_name', 'pillar'],
+                        'hour' => ['stem_id', 'branch_id', 'stem_name', 'branch_name', 'pillar'],
+                    ],
+                    'hidden_stems',
+                    'ten_gods',
+                    'twelve_life_stages',
+                    'five_element_strength' => [
+                        'raw_scores',
+                        'seasonal_adjusted_scores',
+                        'normalized_scores',
+                        'seasonal_status',
+                        'basis',
+                        'source_rank',
+                        'source_note',
+                    ],
+                    'dayun',
+                    'ryunen',
+                    'interpretation',
+                    'warnings',
+                    'pillars',
+                    'five_elements_scores',
+                    'saiun',
+                    'getsuun',
+                    'appraisal',
+                    'relation_items',
+                ],
+            ])
+            ->assertJsonPath('data.judgement.strength.status', 'pending')
+            ->assertJsonPath('data.judgement.strength.basis.five_element_strength.source_rank', 'PENDING')
+            ->assertJsonPath('data.judgement.relations.status', 'pending')
+            ->assertJsonPath('data.judgement.relations.source_rank', 'PENDING')
+            ->assertJsonStructure([
+                'data' => [
+                    'relations' => ['status', 'items', 'source_rank', 'source_note'],
+                    'judgement' => [
+                        'relations' => ['status', 'items', 'source_rank', 'source_note'],
+                    ],
+                ],
+            ])
+            ->assertJsonPath('data.relations.status', 'pending')
+            ->assertJsonPath('data.relations.source_rank', 'PENDING')
+            ->assertJsonPath('data.judgement.pattern.status', 'pending')
+            ->assertJsonPath('data.judgement.useful_god.status', 'pending')
+            ->assertJsonPath('data.judgement.favorable_unfavorable.status', 'pending');
+
+        json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
     }
 
     public function test_single_analysis_api_accepts_existing_datetime_local_birthday_shape(): void
@@ -55,6 +113,19 @@ class AnalysisValidationTest extends TestCase
             $this->postJson('/api/analyze', $payload)
                 ->assertUnprocessable();
         }
+    }
+
+    public function test_single_analysis_api_does_not_fabricate_result_when_calendar_data_is_missing(): void
+    {
+        $this->seedCalendarEvents();
+
+        $payload = $this->validPayload();
+        $payload['birthday'] = '2025-03-05';
+
+        $this->postJson('/api/analyze', $payload)
+            ->assertUnprocessable()
+            ->assertJsonPath('status', 'error')
+            ->assertJsonMissingPath('data.schema_version');
     }
 
     private function validPayload(): array

@@ -20,7 +20,25 @@ class CompatibilityValidationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJsonStructure(['data' => ['person1', 'person2', 'compatibility']]);
+            ->assertJsonPath('data.schema_version', 1)
+            ->assertJsonPath('data.status', 'calculated')
+            ->assertJsonPath('data.person1_result.schema_version', 1)
+            ->assertJsonPath('data.person2_result.schema_version', 1)
+            ->assertJsonPath('data.relations.status', 'pending')
+            ->assertJsonStructure([
+                'data' => [
+                    'person1_result',
+                    'person2_result',
+                    'compatibility',
+                    'relations' => ['status', 'items', 'source_rank', 'source_note'],
+                    'interpretation' => ['status', 'summary', 'sections', 'source_rank', 'source_note'],
+                    'warnings',
+                    'person1',
+                    'person2',
+                ],
+            ]);
+
+        json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
     }
 
     public function test_compatibility_api_rejects_invalid_input(): void

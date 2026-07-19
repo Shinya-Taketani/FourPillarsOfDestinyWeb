@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Data\Appraisal\CompatibilityResultData;
 use App\Exceptions\CalendarDataUnavailableException;
 use App\Http\Requests\CompatibilityAnalyzeRequest;
 use App\Http\Requests\CompatibilityPdfRequest;
-use App\Services\DestinyCalculationService;
 use App\Services\AppraisalService;
+use App\Services\DestinyCalculationService;
 use App\Support\PdfFileNameSanitizer;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\JsonResponse;
+use Throwable;
 
 class CompatibilityController extends Controller
 {
@@ -57,11 +61,12 @@ class CompatibilityController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => [
-                'person1' => $res1,
-                'person2' => $res2,
-                'compatibility' => $compatibility
-            ]
+            'data' => (new CompatibilityResultData(
+                schemaVersion: 1,
+                person1Result: $res1,
+                person2Result: $res2,
+                compatibility: $compatibility,
+            ))->toArray(),
         ]);
     }
 
@@ -72,49 +77,67 @@ class CompatibilityController extends Controller
     {
         $validated = $request->validatedForCompatibility();
 
-        $res1 = $calc->analyze(
-            $validated['person1']['birth_datetime'],
-            $validated['person1']['longitude'],
-            $validated['person1']['gender'],
-            $validated['target_datetime'],
-        );
-        $res2 = $calc->analyze(
-            $validated['person2']['birth_datetime'],
-            $validated['person2']['longitude'],
-            $validated['person2']['gender'],
-            $validated['target_datetime'],
-        );
-        $compatibility = $appraisal->compareDestiny($res1, $res2);
+        try {
+            $res1 = $calc->analyze(
+                $validated['person1']['birth_datetime'],
+                $validated['person1']['longitude'],
+                $validated['person1']['gender'],
+                $validated['target_datetime'],
+            );
+            $res2 = $calc->analyze(
+                $validated['person2']['birth_datetime'],
+                $validated['person2']['longitude'],
+                $validated['person2']['gender'],
+                $validated['target_datetime'],
+            );
+            $compatibility = $appraisal->compareDestiny($res1, $res2);
 
-        $data = [
-            'person1' => [
-                'name' => $validated['person1']['name'],
-                'birthday' => \Carbon\Carbon::parse($validated['person1']['birth_datetime'])->format('Y年m月d日H:i') . '生まれ',
-                'result' => $res1
-            ],
-            'person2' => [
-                'name' => $validated['person2']['name'],
-                'birthday' => \Carbon\Carbon::parse($validated['person2']['birth_datetime'])->format('Y年m月d日H:i') . '生まれ',
-                'result' => $res2
-            ],
-            'compatibility' => $compatibility
-        ];
+            $data = [
+                'person1' => [
+                    'name' => $validated['person1']['name'],
+                    'birthday' => Carbon::parse($validated['person1']['birth_datetime'])->format('Y年m月d日H:i').'生まれ',
+                    'result' => $res1,
+                ],
+                'person2' => [
+                    'name' => $validated['person2']['name'],
+                    'birthday' => Carbon::parse($validated['person2']['birth_datetime'])->format('Y年m月d日H:i').'生まれ',
+                    'result' => $res2,
+                ],
+                'compatibility' => $compatibility,
+            ];
 
-        // PDFオプション設定
-        Pdf::setOption([
-            'fontDir' => storage_path('fonts'),
-            'fontCache' => storage_path('fonts'),
-            'defaultFont' => 'NotoSansJP',
-            'isHtml5ParserEnabled' => true,
-            'isRemoteEnabled' => false,
-            'chroot' => base_path(),
-        ]);
+            // PDFオプション設定
+            Pdf::setOption([
+                'fontDir' => storage_path('fonts'),
+                'fontCache' => storage_path('fonts'),
+                'defaultFont' => 'NotoSansJP',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => false,
+                'chroot' => base_path(),
+            ]);
 
-        $pdf = Pdf::loadView('pdf.compatibility', $data)->setPaper('a4', 'portrait');
+            $pdf = Pdf::loadView('pdf.compatibility', $data)->setPaper('a4', 'portrait');
 
-        $person1Name = PdfFileNameSanitizer::part($validated['person1']['name'], 'person1');
-        $person2Name = PdfFileNameSanitizer::part($validated['person2']['name'], 'person2');
-        $fileName = '相性鑑定書_' . $person1Name . '_' . $person2Name . '.pdf';
-        return $pdf->download($fileName);
+            return $pdf->download(PdfFileNameSanitizer::compatibility(
+                $validated['person1']['name'],
+                $validated['person2']['name'],
+            ));
+        } catch (CalendarDataUnavailableException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (Throwable $e) {
+            Log::error('Compatibility PDF generation failed.', [
+                'route' => 'compatibility.pdf',
+                'exception_class' => $e::class,
+            ]);
+            report($e);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'PDFの生成に失敗しました。時間をおいて再度お試しください。',
+            ], 500);
+        }
     }
 }

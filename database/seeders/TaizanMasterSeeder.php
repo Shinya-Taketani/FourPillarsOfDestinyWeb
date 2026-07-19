@@ -99,10 +99,7 @@ class TaizanMasterSeeder extends Seeder
         ];
         DB::table('master_zokan_ratios')->insert($zokanRatios);
 
-        // --- 5. 季節倍率 (旺相死囚休：全5季節×5五行 完結版) ---
-        $seasons = [
-            1 => '春', 2 => '夏', 3 => '土用', 4 => '秋', 5 => '冬'
-        ];
+        // --- 5. 季節倍率 (旺相死囚休：検証用。配点根拠と採用可否は要確認) ---
         $multipliers = [
             // 春(1): 木旺(2.0), 火相(1.5), 水休(0.8), 金囚(0.5), 土死(0.3)
             ['season_id' => 1, 'element_id' => 1, 'state_name' => '旺', 'multiplier' => 2.0],
@@ -163,7 +160,7 @@ class TaizanMasterSeeder extends Seeder
             ['id' => 9, 'name' => '病', 'score' => 5], ['id' => 10, 'name' => '死', 'score' => 2],
             ['id' => 11, 'name' => '墓', 'score' => 6], ['id' => 12, 'name' => '絶', 'score' => 1],
         ]);
-        
+
         // 通変星・相性ラベルも同様に完結データを挿入... (文字数制限のため主要部は上記で完了)
     }
 }

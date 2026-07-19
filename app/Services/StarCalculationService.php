@@ -4,20 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
+use App\Repositories\MasterDataRepository;
 
 /**
  * 通変星・十二運 算出サービス（完全版）
  */
 readonly class StarCalculationService
 {
+    public function __construct(
+        private MasterDataRepository $masterData,
+    ) {}
+
     /**
      * 通変星を算出する（日干と対象干の関係）
      */
     public function getTenGod(int $dayStemId, int $targetStemId): string
     {
-        $dayStem = DB::table('master_stems')->where('id', $dayStemId)->first();
-        $targetStem = DB::table('master_stems')->where('id', $targetStemId)->first();
+        $dayStem = $this->masterData->getStemById($dayStemId);
+        $targetStem = $this->masterData->getStemById($targetStemId);
 
         if (!$dayStem || !$targetStem) return '不明';
 
@@ -60,6 +64,6 @@ readonly class StarCalculationService
         ];
 
         $stageId = $matrix[$dayStemId][$targetBranchId - 1] ?? 1;
-        return DB::table('master_twelve_life_stages')->where('id', $stageId)->value('name') ?? '不明';
+        return $this->masterData->twelveLifeStagesById()->get($stageId)?->name ?? '不明';
     }
 }
