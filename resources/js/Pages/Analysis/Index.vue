@@ -4,11 +4,17 @@ import axios from 'axios';
 import { Radar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler } from 'chart.js';
 import { useValidationErrors } from '@/composables/useValidationErrors';
+import { DEFAULT_BIRTH_DATETIME, DEFAULT_TARGET_DATETIME, SUPPORTED_CALENDAR_YEAR } from '@/config/calendar';
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
-// 1980年・京都(135.76)・09:00をデフォルトに設定
-const form = ref({ name: '鑑定者', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'male' });
+const form = ref({
+    name: '鑑定者',
+    birthday: DEFAULT_BIRTH_DATETIME,
+    longitude: 135.76,
+    gender: 'male',
+    target_datetime: DEFAULT_TARGET_DATETIME,
+});
 const result = ref(null);
 const loading = ref(false);
 const pdfLoading = ref(false);
@@ -70,6 +76,12 @@ const downloadPdf = async () => {
 };
 
 const toggleMonth = (idx) => { activeMonth.value = activeMonth.value === idx ? null : idx; };
+const targetYear = computed(() => (
+    result.value?.ryunen?.ryunen_year
+    ?? result.value?.saiun?.year
+    ?? result.value?.input?.target_year
+    ?? ''
+));
 
 const chartData = computed(() => {
     if (!result.value) return null;
@@ -91,6 +103,10 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen text-gray-800">
         <div class="bg-white p-8 rounded-xl shadow-lg mb-8 border-b-8 border-indigo-600">
             <h1 class="text-3xl font-black mb-8 text-indigo-900 border-l-8 border-indigo-600 pl-4">運命鑑定</h1>
+
+            <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+                現在、正式採用済みの節入りデータは{{ SUPPORTED_CALENDAR_YEAR }}年分です。対象外の日時は計算できません。
+            </p>
 
             <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                 {{ generalError }}
@@ -165,19 +181,19 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
             <div class="bg-gradient-to-r from-red-500 to-orange-500 p-1 rounded-2xl mb-8 shadow-xl">
                 <div class="bg-white p-8 rounded-xl flex flex-col lg:flex-row items-center gap-8 text-center lg:text-left">
                     <div class="shrink-0 lg:border-r-4 border-orange-100 pr-0 lg:pr-8">
-                        <div class="text-2xl font-black text-orange-500 uppercase">Yearly 2026</div>
+                        <div class="text-2xl font-black text-orange-500 uppercase">Yearly {{ targetYear }}</div>
                         <div class="text-7xl font-serif font-black text-red-600 my-2 leading-none">{{ result.saiun.kanji }}</div>
                         <div class="inline-block px-6 py-2 bg-red-600 text-white text-3xl rounded-xl font-black">{{ result.saiun.ten_god }}</div>
                     </div>
                     <div class="flex-1">
-                        <h2 class="text-2xl font-black text-gray-400 mb-2">2026年の運勢テーマ</h2>
+                        <h2 class="text-2xl font-black text-gray-400 mb-2">{{ targetYear }}年の運勢テーマ</h2>
                         <p class="text-4xl font-bold text-gray-700 leading-relaxed italic">“ {{ result.appraisal.saiun_comment }} ”</p>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white p-8 rounded-xl shadow-md mb-8 border-t-8 border-orange-500">
-                <h2 class="text-3xl font-black mb-8 border-l-8 border-orange-500 pl-4 text-orange-900">2026年 月運</h2>
+                <h2 class="text-3xl font-black mb-8 border-l-8 border-orange-500 pl-4 text-orange-900">{{ targetYear }}年 月運</h2>
                 <div class="space-y-6">
                     <div v-for="(m, idx) in result.getsuun" :key="idx" @click="toggleMonth(idx)" class="cursor-pointer group">
                         <div class="flex flex-col lg:flex-row bg-orange-50 rounded-2xl p-6 gap-6 border-2 border-orange-100 shadow-sm hover:bg-orange-100 transition">

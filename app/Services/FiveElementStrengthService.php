@@ -140,7 +140,8 @@ readonly class FiveElementStrengthService
      */
     public function compatibilityScores(array $strength): array
     {
-        $scores = $strength['seasonal_adjusted_scores'] ?? $strength['raw_scores'] ?? [];
+        // 季節倍率は PENDING のため、公開鑑定には未補正値だけを使う。
+        $scores = $strength['raw_scores'] ?? [];
         $elements = $this->masterData->elementsById();
 
         return $elements->map(fn ($element) => [

@@ -113,6 +113,26 @@ class FiveElementStrengthServiceTest extends TestCase
         $this->assertSame(['element', 'score', 'color'], array_keys($scores[0]));
     }
 
+    public function test_pending_seasonal_multipliers_do_not_change_public_scores(): void
+    {
+        $service = app(FiveElementStrengthService::class);
+        $before = $service->calculate($this->pillars(), 4);
+        $publicBefore = $service->compatibilityScores($before);
+
+        DB::table('master_seasonal_multipliers')
+            ->where('season_id', 1)
+            ->update(['multiplier' => 9.99]);
+        app()->forgetScopedInstances();
+
+        $service = app(FiveElementStrengthService::class);
+        $after = $service->calculate($this->pillars(), 4);
+
+        $this->assertNotSame($before['seasonal_adjusted_scores'], $after['seasonal_adjusted_scores']);
+        $this->assertSame('applied_pending_verification', $after['seasonal_adjustment']['status']);
+        $this->assertSame($before['raw_scores'], $after['raw_scores']);
+        $this->assertSame($publicBefore, $service->compatibilityScores($after));
+    }
+
     private function pillars(): array
     {
         return [

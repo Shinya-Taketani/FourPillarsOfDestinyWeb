@@ -128,6 +128,18 @@ class AnalysisValidationTest extends TestCase
             ->assertJsonMissingPath('data.schema_version');
     }
 
+    public function test_1980_input_returns_safe_calendar_data_error(): void
+    {
+        $this->seedCalendarEvents();
+        $payload = $this->validPayload();
+        $payload['birthday'] = '1980-01-01';
+
+        $this->postJson('/api/analyze', $payload)
+            ->assertUnprocessable()
+            ->assertJsonPath('status', 'error')
+            ->assertJsonMissingPath('data');
+    }
+
     private function validPayload(): array
     {
         return [

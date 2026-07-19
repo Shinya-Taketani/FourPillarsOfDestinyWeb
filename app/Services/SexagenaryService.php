@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Exceptions\CalendarDataUnavailableException;
 use Carbon\CarbonImmutable;
+use InvalidArgumentException;
 
 /**
  * 干支計算サービス（精密版）
@@ -21,12 +22,7 @@ readonly class SexagenaryService
      */
     public function getYearPillar(CarbonImmutable $date): array
     {
-        $year = $this->getPillarYear($date);
-
-        $index = ($year - 3) % 60;
-        if ($index <= 0) $index += 60;
-
-        return $this->splitIndex($index);
+        return $this->getPillarByYearNumber($this->getPillarYear($date));
     }
 
     public function getPillarYear(CarbonImmutable $date): int
@@ -37,7 +33,7 @@ readonly class SexagenaryService
             throw CalendarDataUnavailableException::forLichun($date->year);
         }
 
-        $localDate = CarbonImmutable::parse($date->toDateTimeString(), $lichun->timezoneName);
+        $localDate = $date->setTimezone($lichun->timezoneName);
 
         return $localDate->lt($lichun) ? $date->year - 1 : $date->year;
     }
@@ -50,21 +46,10 @@ readonly class SexagenaryService
             throw CalendarDataUnavailableException::forMonthBoundary($date->toDateTimeString());
         }
 
-        $branchId = (int)$event->month_branch_id;
-        $startStemId = (($yearStemId - 1) % 5) * 2 + 3;
-
-        if ($startStemId > 10) {
-            $startStemId -= 10;
-        }
-
-        $offset = $branchId - 3;
-        if ($offset < 0) {
-            $offset += 12;
-        }
+        $pillar = $this->getMonthPillarIds($yearStemId, (int) $event->month_branch_id);
 
         return [
-            'stem_id' => (($startStemId + $offset - 1) % 10) + 1,
-            'branch_id' => $branchId,
+            ...$pillar,
             'solar_term_name' => $event->term_name,
             'started_at' => $event->started_at,
             'timezone' => $event->timezone,
@@ -77,14 +62,45 @@ readonly class SexagenaryService
         ];
     }
 
+    /** @return array{stem_id:int,branch_id:int} */
+    public function getPillarByYearNumber(int $pillarYear): array
+    {
+        $index = ($pillarYear - 3) % 60;
+        if ($index <= 0) {
+            $index += 60;
+        }
+
+        return $this->splitIndex($index);
+    }
+
+    /** @return array{stem_id:int,branch_id:int} */
+    public function getMonthPillarIds(int $yearStemId, int $monthBranchId): array
+    {
+        if ($yearStemId < 1 || $yearStemId > 10 || $monthBranchId < 1 || $monthBranchId > 12) {
+            throw new InvalidArgumentException('年干または月支 ID が不正です。');
+        }
+
+        $startStemId = (($yearStemId - 1) % 5) * 2 + 3;
+        if ($startStemId > 10) {
+            $startStemId -= 10;
+        }
+
+        $offset = ($monthBranchId - 3 + 12) % 12;
+
+        return [
+            'stem_id' => (($startStemId + $offset - 1) % 10) + 1,
+            'branch_id' => $monthBranchId,
+        ];
+    }
+
     public function getDayPillar(CarbonImmutable $date): array
     {
-        $baseDate = CarbonImmutable::create(1900, 1, 31);
+        $baseDate = CarbonImmutable::create(1900, 1, 31, 0, 0, 0, $date->timezone);
         $calculationDate = $this->getDayPillarCalculationDate($date);
         $diffDays = $baseDate->diffInDays($calculationDate);
         $index = ($diffDays % 60) + 1;
 
-        return $this->splitIndex((int)$index);
+        return $this->splitIndex((int) $index);
     }
 
     public function getDayPillarCalculationDate(CarbonImmutable $date): CarbonImmutable
@@ -100,10 +116,10 @@ readonly class SexagenaryService
         $branchId = $this->resolveHourBranchId($date);
 
         $baseStemByDay = [
-            1 => 1, 6 => 1, 2 => 3, 7 => 3, 3 => 5, 
+            1 => 1, 6 => 1, 2 => 3, 7 => 3, 3 => 5,
             8 => 5, 4 => 7, 9 => 7, 5 => 9, 10 => 9,
         ];
-        
+
         $startStemId = $baseStemByDay[$dayStemId] ?? 1;
         $stemId = ($startStemId + $branchId - 2) % 10 + 1;
 
@@ -133,6 +149,7 @@ readonly class SexagenaryService
     {
         $stemId = $index % 10 ?: 10;
         $branchId = $index % 12 ?: 12;
+
         return ['stem_id' => $stemId, 'branch_id' => $branchId];
     }
 }

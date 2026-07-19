@@ -51,6 +51,7 @@ class MasterDataQueryCountTest extends TestCase
             ->assertJsonPath('data.pillars.hour.kanji', '戊午');
 
         $this->assertStaticMastersQueriedAtMostOnce($queries);
+        $this->assertMasterSolarTermsWereNotQueried($queries);
     }
 
     public function test_compatibility_analysis_reuses_static_masters_for_both_people(): void
@@ -86,6 +87,7 @@ class MasterDataQueryCountTest extends TestCase
             ->assertJsonPath('data.person2_result.schema_version', 1);
 
         $this->assertStaticMastersQueriedAtMostOnce($queries);
+        $this->assertMasterSolarTermsWereNotQueried($queries);
     }
 
     /** @param array<int,string> $queries */
@@ -107,5 +109,11 @@ class MasterDataQueryCountTest extends TestCase
             $queries,
             static fn (string $sql): bool => str_contains($sql, $table),
         ));
+    }
+
+    /** @param array<int,string> $queries */
+    private function assertMasterSolarTermsWereNotQueried(array $queries): void
+    {
+        $this->assertSame(0, $this->queryCountFor($queries, 'master_solar_terms'));
     }
 }

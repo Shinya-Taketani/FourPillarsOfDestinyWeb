@@ -12,6 +12,7 @@ readonly class RyunenService
 {
     public function __construct(
         private SolarTermService $solarTermService,
+        private SexagenaryService $sexagenaryService,
         private StarCalculationService $starService,
         private InterpretationDictionaryService $dictionary,
         private MasterDataRepository $masterData,
@@ -19,13 +20,9 @@ readonly class RyunenService
 
     public function getRyunenPillarByYear(int $year, ?int $dayStemId = null): array
     {
-        $index = ($year - 3) % 60;
-        if ($index <= 0) {
-            $index += 60;
-        }
-
-        $stemId = $index % 10 ?: 10;
-        $branchId = $index % 12 ?: 12;
+        $pillar = $this->sexagenaryService->getPillarByYearNumber($year);
+        $stemId = $pillar['stem_id'];
+        $branchId = $pillar['branch_id'];
         $stemName = $this->masterData->getStemById($stemId)?->name;
         $branchName = $this->masterData->getBranchById($branchId)?->name;
 
@@ -55,7 +52,7 @@ readonly class RyunenService
             throw CalendarDataUnavailableException::forLichun($dateTime->year);
         }
 
-        $localDateTime = CarbonImmutable::parse($dateTime->toDateTimeString(), $lichun->timezoneName);
+        $localDateTime = $dateTime->setTimezone($lichun->timezoneName);
 
         return $localDateTime->lt($lichun) ? $dateTime->year - 1 : $dateTime->year;
     }

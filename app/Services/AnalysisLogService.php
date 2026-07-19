@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\AnalysisLog;
 use App\Models\AnalysisTarget;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -16,7 +17,7 @@ class AnalysisLogService
      * ログイン中の単体鑑定だけを保存する。
      * TODO: 個人情報保存ポリシー要確認。削除・匿名化要件が固まり次第、保存項目を再評価する。
      *
-     * @param  array{name:string,birth_datetime:string,gender:string,longitude:float,target_datetime:string}  $validated
+     * @param  array{name:string,birth_datetime:string,gender:string,longitude:float,target_datetime:?string}  $validated
      * @param  array<string,mixed>  $result
      */
     public function storeAppraisalIfAuthenticated(array $validated, array $result): ?AnalysisLog
@@ -27,19 +28,25 @@ class AnalysisLogService
             return null;
         }
 
-        try {
-            $target = AnalysisTarget::create([
-                'user_id' => $userId,
-                'name' => $validated['name'] !== '' ? $validated['name'] : 'unknown',
-                'gender' => $this->genderCode($validated['gender']),
-                'birthday' => $validated['birth_datetime'],
-                'longitude' => $validated['longitude'],
-            ]);
+        $effectiveTargetDateTime = $result['ryunen']['target_datetime']
+            ?? $validated['target_datetime']
+            ?? null;
 
-            return AnalysisLog::create([
-                'target_id' => $target->id,
-                'chart_data' => $this->chartSnapshot($result, $validated['target_datetime']),
-            ]);
+        try {
+            return DB::transaction(function () use ($userId, $validated, $result, $effectiveTargetDateTime): AnalysisLog {
+                $target = AnalysisTarget::create([
+                    'user_id' => $userId,
+                    'name' => $validated['name'] !== '' ? $validated['name'] : 'unknown',
+                    'gender' => $this->genderCode($validated['gender']),
+                    'birthday' => $validated['birth_datetime'],
+                    'longitude' => $validated['longitude'],
+                ]);
+
+                return AnalysisLog::create([
+                    'target_id' => $target->id,
+                    'chart_data' => $this->chartSnapshot($result, $effectiveTargetDateTime),
+                ]);
+            });
         } catch (Throwable $e) {
             Log::warning('Analysis log save failed.', [
                 'user_id' => $userId,
@@ -67,7 +74,7 @@ class AnalysisLogService
      * @param  array<string,mixed>  $result
      * @return array<string,mixed>
      */
-    private function chartSnapshot(array $result, string $targetDateTime): array
+    private function chartSnapshot(array $result, ?string $targetDateTime): array
     {
         return [
             'schema_version' => $result['schema_version'] ?? 1,

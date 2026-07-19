@@ -10,6 +10,8 @@ use Carbon\CarbonImmutable;
 
 readonly class DestinyCalculationService
 {
+    private const INPUT_TIMEZONE = 'Asia/Tokyo';
+
     public function __construct(
         private LmtCalculatorService $lmtService,
         private SolarTermService $solarService,
@@ -29,11 +31,13 @@ readonly class DestinyCalculationService
 
     public function analyze(string $birthDate, float $longitude, string $gender = 'male', string|CarbonImmutable|null $targetDateTime = null): array
     {
-        $birthDateTimeJst = CarbonImmutable::parse($birthDate);
+        $birthDateTimeJst = CarbonImmutable::parse($birthDate, self::INPUT_TIMEZONE);
         $birthDateTimeLmt = $this->lmtService->calculate($birthDateTimeJst, $longitude);
-        $targetDateTimeJst = $targetDateTime instanceof CarbonImmutable
-            ? $targetDateTime
-            : CarbonImmutable::parse($targetDateTime ?? now());
+        $targetDateTimeJst = match (true) {
+            $targetDateTime instanceof CarbonImmutable => $targetDateTime->setTimezone(self::INPUT_TIMEZONE),
+            is_string($targetDateTime) && $targetDateTime !== '' => CarbonImmutable::parse($targetDateTime, self::INPUT_TIMEZONE),
+            default => CarbonImmutable::now(self::INPUT_TIMEZONE),
+        };
 
         // 節入りイベントは Asia/Tokyo の採用済み時刻なので、年柱・月柱は JST で比較する。
         $dateTimeForYearMonth = $birthDateTimeJst;
@@ -96,7 +100,7 @@ readonly class DestinyCalculationService
         $res['appraisal'] = $this->appraisalService->generate($res, $res['five_elements_scores']);
 
         $warnings = $this->warnings();
-        $inputDateTimeJst = CarbonImmutable::parse($birthDate, 'Asia/Tokyo');
+        $inputDateTimeJst = CarbonImmutable::parse($birthDate, self::INPUT_TIMEZONE);
 
         return AppraisalResultData::fromCalculation(
             legacyResult: $res,
@@ -105,7 +109,7 @@ readonly class DestinyCalculationService
                 'birth_time' => $inputDateTimeJst->format('H:i'),
                 'gender' => $gender,
                 'longitude' => $longitude,
-                'input_timezone' => 'Asia/Tokyo',
+                'input_timezone' => self::INPUT_TIMEZONE,
                 'target_year' => $targetDateTimeJst->year,
             ],
             calculationMetadata: $this->calculationMetadata(
@@ -159,11 +163,11 @@ readonly class DestinyCalculationService
         array $monthPillar,
         array $warnings,
     ): array {
-        $inputDateTimeJst = CarbonImmutable::parse($birthDate, 'Asia/Tokyo');
+        $inputDateTimeJst = CarbonImmutable::parse($birthDate, self::INPUT_TIMEZONE);
         // 現行 LMT は JST の壁時計値を補正するため、API 上も Asia/Tokyo の壁時計値として明示する。
         $calculationDateTimeLmt = CarbonImmutable::parse(
             $birthDateTimeLmt->toDateTimeString(),
-            'Asia/Tokyo',
+            self::INPUT_TIMEZONE,
         );
         $termTimeZone = (string) ($monthPillar['timezone'] ?? 'Asia/Tokyo');
         $termStartedAt = CarbonImmutable::parse((string) $monthPillar['started_at'], $termTimeZone);

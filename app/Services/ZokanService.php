@@ -25,18 +25,19 @@ readonly class ZokanService
             throw new RuntimeException("Zokan ratios are not seeded for branch_id {$branchId}.");
         }
 
-        if (!$solarTermStartedAt) {
+        if (! $solarTermStartedAt) {
             $honki = $ratios->firstWhere('type', 'honki') ?? $ratios->last();
 
             return $this->requireStemId($honki, $branchId);
         }
 
-        $startedAt = CarbonImmutable::parse($solarTermStartedAt);
+        // solar_term_events.started_at は JST 壁時計値として保存されている。
+        $startedAt = CarbonImmutable::parse($solarTermStartedAt, 'Asia/Tokyo');
         $diffDays = $startedAt->diffInDays($lmtDateTime);
 
         $currentDaysLimit = 0;
         foreach ($ratios as $ratio) {
-            $currentDaysLimit += (int)$ratio->days;
+            $currentDaysLimit += (int) $ratio->days;
 
             if ($diffDays <= $currentDaysLimit) {
                 return $this->requireStemId($ratio, $branchId);
@@ -49,10 +50,10 @@ readonly class ZokanService
 
     private function requireStemId(object $ratio, int $branchId): int
     {
-        if (!isset($ratio->stem_id) || $ratio->stem_id === null) {
+        if (! isset($ratio->stem_id) || $ratio->stem_id === null) {
             throw new RuntimeException("Zokan stem_id is not set for branch_id {$branchId}.");
         }
 
-        return (int)$ratio->stem_id;
+        return (int) $ratio->stem_id;
     }
 }

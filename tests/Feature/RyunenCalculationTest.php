@@ -23,9 +23,9 @@ class RyunenCalculationTest extends TestCase
 
         $service = app(RyunenService::class);
 
-        $this->assertSame(2025, $service->resolveRyunenYear(CarbonImmutable::parse('2026-02-04 05:01:00')));
-        $this->assertSame(2026, $service->resolveRyunenYear(CarbonImmutable::parse('2026-02-04 05:02:00')));
-        $this->assertSame(2026, $service->resolveRyunenYear(CarbonImmutable::parse('2026-02-04 05:03:00')));
+        $this->assertSame(2025, $service->resolveRyunenYear(CarbonImmutable::parse('2026-02-04 05:01:00', 'Asia/Tokyo')));
+        $this->assertSame(2026, $service->resolveRyunenYear(CarbonImmutable::parse('2026-02-04 05:02:00', 'Asia/Tokyo')));
+        $this->assertSame(2026, $service->resolveRyunenYear(CarbonImmutable::parse('2026-02-04 05:03:00', 'Asia/Tokyo')));
     }
 
     public function test_ryunen_pillar_by_year_returns_structured_pillar(): void

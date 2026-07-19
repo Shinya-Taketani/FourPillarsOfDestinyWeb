@@ -4,12 +4,12 @@ import axios from 'axios';
 import { Radar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler } from 'chart.js';
 import { useValidationErrors } from '@/composables/useValidationErrors';
+import { DEFAULT_BIRTH_DATETIME, DEFAULT_TARGET_DATETIME, SUPPORTED_CALENDAR_YEAR } from '@/config/calendar';
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
-// 修正：1980年・京都(135.76)・09:00をデフォルトに設定
-const person1 = ref({ name: '自分', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'male' });
-const person2 = ref({ name: '相手', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'female' });
+const person1 = ref({ name: '自分', birthday: DEFAULT_BIRTH_DATETIME, longitude: 135.76, gender: 'male' });
+const person2 = ref({ name: '相手', birthday: DEFAULT_BIRTH_DATETIME, longitude: 135.76, gender: 'female' });
 const result = ref(null);
 const loading = ref(false);
 const pdfLoading = ref(false);
@@ -36,6 +36,7 @@ const setCityLng = (p, l) => { p.longitude = l; };
 const compatibilityPayload = () => ({
     person1: person1.value,
     person2: person2.value,
+    target_datetime: DEFAULT_TARGET_DATETIME,
 });
 
 const submit = async () => {
@@ -92,6 +93,10 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
     <Head title="相性精密鑑定" />
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen font-sans">
         <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">相性精密鑑定</h1>
+
+        <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+            現在、正式採用済みの節入りデータは{{ SUPPORTED_CALENDAR_YEAR }}年分です。対象外の日時は計算できません。
+        </p>
 
         <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
             {{ generalError }}

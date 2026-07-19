@@ -70,6 +70,40 @@ class TimeBasisTest extends TestCase
         $this->assertSame($this->pillarKanji($expectedHourPillar), $result['pillars']['hour']['kanji']);
     }
 
+    public function test_input_and_target_datetimes_are_normalized_to_jst_when_app_timezone_is_utc(): void
+    {
+        config()->set('app.timezone', 'UTC');
+        $this->seedCalendarEvents();
+
+        $targetUtc = CarbonImmutable::parse('2026-06-30 15:00:00', 'UTC');
+        $result = app(DestinyCalculationService::class)->analyze(
+            '2026-03-01T00:00',
+            135.0,
+            'male',
+            $targetUtc,
+        );
+
+        $this->assertSame('2026-03-01T00:00:00+09:00', $result['calculation_metadata']['input_datetime_jst']);
+        $this->assertSame('2026-07-01T00:00:00+09:00', $result['ryunen']['target_datetime']);
+        $this->assertSame(2026, $result['input']['target_year']);
+    }
+
+    public function test_dayun_start_age_does_not_include_a_utc_jst_nine_hour_shift(): void
+    {
+        config()->set('app.timezone', 'UTC');
+        $this->seedCalendarEvents();
+
+        $result = app(DestinyCalculationService::class)->analyze(
+            '2026-03-01T00:00',
+            135.0,
+            'male',
+            '2026-07-01T00:00',
+        );
+
+        $this->assertSame('2026-03-05 22:59:00', $result['dayun']['basis_term_started_at']);
+        $this->assertSame(1.6525, $result['dayun']['start_age_years_decimal']);
+    }
+
     private function seedCalendarEvents(): void
     {
         $this->seed(TaizanMasterSeeder::class);
@@ -78,7 +112,7 @@ class TimeBasisTest extends TestCase
     }
 
     /**
-     * @param array{stem_id: int, branch_id: int} $pillar
+     * @param  array{stem_id: int, branch_id: int}  $pillar
      */
     private function pillarKanji(array $pillar): string
     {
@@ -91,6 +125,6 @@ class TimeBasisTest extends TestCase
             7 => '午', 8 => '未', 9 => '申', 10 => '酉', 11 => '戌', 12 => '亥',
         ];
 
-        return $stems[$pillar['stem_id']] . $branches[$pillar['branch_id']];
+        return $stems[$pillar['stem_id']].$branches[$pillar['branch_id']];
     }
 }

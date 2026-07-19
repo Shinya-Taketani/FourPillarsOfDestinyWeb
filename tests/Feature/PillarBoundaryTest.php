@@ -22,10 +22,13 @@ class PillarBoundaryTest extends TestCase
 
         $service = app(SexagenaryService::class);
 
-        $this->assertSame(2025, $service->getPillarYear(CarbonImmutable::parse('2026-02-04 05:01:00')));
-        $this->assertSame(2026, $service->getPillarYear(CarbonImmutable::parse('2026-02-04 05:02:00')));
-        $this->assertSame(['stem_id' => 2, 'branch_id' => 6], $service->getYearPillar(CarbonImmutable::parse('2026-02-04 05:01:00')));
-        $this->assertSame(['stem_id' => 3, 'branch_id' => 7], $service->getYearPillar(CarbonImmutable::parse('2026-02-04 05:02:00')));
+        $before = CarbonImmutable::parse('2026-02-04 05:01:00', 'Asia/Tokyo');
+        $at = CarbonImmutable::parse('2026-02-04 05:02:00', 'Asia/Tokyo');
+
+        $this->assertSame(2025, $service->getPillarYear($before));
+        $this->assertSame(2026, $service->getPillarYear($at));
+        $this->assertSame(['stem_id' => 2, 'branch_id' => 6], $service->getYearPillar($before));
+        $this->assertSame(['stem_id' => 3, 'branch_id' => 7], $service->getYearPillar($at));
     }
 
     public function test_month_pillar_switches_at_2026_keichitsu(): void

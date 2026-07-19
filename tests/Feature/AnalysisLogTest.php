@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnalysisLog;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\SolarTermDefinitionSeeder;
 use Database\Seeders\SolarTermEventSeeder;
 use Database\Seeders\TaizanMasterSeeder;
@@ -49,6 +51,45 @@ class AnalysisLogTest extends TestCase
         $this->seedCalendarEvents();
 
         $this->postJson('/api/analyze', $this->validPayload())
+            ->assertOk();
+
+        $this->assertDatabaseCount('analysis_targets', 0);
+        $this->assertDatabaseCount('analysis_logs', 0);
+    }
+
+    public function test_authenticated_analysis_without_target_datetime_saves_effective_target_datetime(): void
+    {
+        $this->seedCalendarEvents();
+        $user = User::factory()->create();
+        $payload = $this->validPayload();
+        unset($payload['target_datetime']);
+        $this->travelTo(CarbonImmutable::parse('2026-07-01 00:00:00', 'Asia/Tokyo'));
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/analyze', $payload)
+            ->assertOk();
+
+        $effectiveTarget = $response->json('data.ryunen.target_datetime');
+        $chartData = json_decode(DB::table('analysis_logs')->value('chart_data'), true);
+
+        $this->assertDatabaseCount('analysis_targets', 1);
+        $this->assertDatabaseCount('analysis_logs', 1);
+        $this->assertNotNull($chartData['target_datetime']);
+        $this->assertSame($effectiveTarget, $chartData['target_datetime']);
+
+        $this->travelBack();
+    }
+
+    public function test_target_and_log_are_rolled_back_together_when_log_creation_fails(): void
+    {
+        $this->seedCalendarEvents();
+        $user = User::factory()->create();
+        AnalysisLog::creating(static function (): void {
+            throw new \RuntimeException('forced analysis log failure');
+        });
+
+        $this->actingAs($user)
+            ->postJson('/api/analyze', $this->validPayload())
             ->assertOk();
 
         $this->assertDatabaseCount('analysis_targets', 0);
