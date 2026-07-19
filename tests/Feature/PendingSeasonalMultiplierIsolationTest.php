@@ -43,7 +43,7 @@ class PendingSeasonalMultiplierIsolationTest extends TestCase
         DB::table('master_seasonal_multipliers')
             ->where('season_id', $seasonId)
             ->where('element_id', $elementIds[$weakestRaw])
-            ->update(['multiplier' => 100.0]);
+            ->update(['multiplier' => 9.99]);
         app()->forgetScopedInstances();
 
         $after1 = $this->analyze('2026-03-10T09:00', 'male');

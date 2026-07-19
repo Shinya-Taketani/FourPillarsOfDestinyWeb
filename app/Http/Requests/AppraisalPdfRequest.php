@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-class AppraisalPdfRequest extends AppraisalAnalyzeRequest
-{
-}
+class AppraisalPdfRequest extends AppraisalAnalyzeRequest {}

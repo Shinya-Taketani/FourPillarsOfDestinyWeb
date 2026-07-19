@@ -33,6 +33,7 @@ class CalendarBoundaryFixtureTest extends TestCase
                     $pillarYear,
                     $sample['sample_id'],
                 );
+
                 continue;
             }
 

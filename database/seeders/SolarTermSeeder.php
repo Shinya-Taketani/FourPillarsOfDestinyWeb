@@ -15,7 +15,7 @@ class SolarTermSeeder extends Seeder
         $data = [
             // 1979年（1980年1月の判定に必要）
             ['name' => '大雪', 'started_at' => '1979-12-07 19:41:00', 'month_stem_id' => 3, 'month_branch_id' => 1, 'longitude_degree' => 255],
-            
+
             // 1980年（庚申年）
             ['name' => '小寒', 'started_at' => '1980-01-06 07:44:00', 'month_stem_id' => 4, 'month_branch_id' => 2, 'longitude_degree' => 285],
             ['name' => '立春', 'started_at' => '1980-02-04 18:41:00', 'month_stem_id' => 5, 'month_branch_id' => 3, 'longitude_degree' => 315],
@@ -29,7 +29,7 @@ class SolarTermSeeder extends Seeder
             ['name' => '寒露', 'started_at' => '1980-10-08 13:13:00', 'month_stem_id' => 3, 'month_branch_id' => 11, 'longitude_degree' => 195],
             ['name' => '立冬', 'started_at' => '1980-11-07 16:13:00', 'month_stem_id' => 4, 'month_branch_id' => 12, 'longitude_degree' => 225],
             ['name' => '大雪', 'started_at' => '1980-12-07 08:35:00', 'month_stem_id' => 5, 'month_branch_id' => 1, 'longitude_degree' => 255],
-            
+
             // 1981年（1月の判定に必要）
             ['name' => '小寒', 'started_at' => '1981-01-05 18:55:00', 'month_stem_id' => 6, 'month_branch_id' => 2, 'longitude_degree' => 285],
         ];

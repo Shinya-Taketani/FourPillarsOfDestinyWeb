@@ -13,9 +13,9 @@ final class CsvFixtureLoader
      */
     public static function load(string $filename): array
     {
-        $path = base_path('tests/fixtures/' . $filename);
+        $path = base_path('tests/fixtures/'.$filename);
 
-        if (!is_file($path)) {
+        if (! is_file($path)) {
             throw new RuntimeException("CSV fixture not found: {$path}");
         }
 

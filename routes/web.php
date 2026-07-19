@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AnalysisWebController;
-use App\Http\Controllers\CompatibilityController;
 use App\Http\Controllers\AppraisalController;
+use App\Http\Controllers\CompatibilityController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;

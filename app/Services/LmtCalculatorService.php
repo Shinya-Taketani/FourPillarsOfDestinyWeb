@@ -13,13 +13,14 @@ use Carbon\CarbonImmutable;
 readonly class LmtCalculatorService
 {
     private const JST_STANDARD_LONGITUDE = 135.0;
+
     private const SECONDS_PER_LONGITUDE_DEGREE = 240;
 
     /**
      * JST の出生日時と経度から LMT 補正後の日時を取得する。
      *
-     * @param CarbonImmutable $dateTime 出生日時（現行仕様では JST）
-     * @param float $longitude 出生地の経度（例: 135.00）
+     * @param  CarbonImmutable  $dateTime  出生日時（現行仕様では JST）
+     * @param  float  $longitude  出生地の経度（例: 135.00）
      * @return CarbonImmutable LMT 補正後の日時
      */
     public function calculate(CarbonImmutable $dateTime, float $longitude): CarbonImmutable
@@ -37,6 +38,7 @@ readonly class LmtCalculatorService
     public function getOffsetDescription(float $longitude): string
     {
         $offset = ($longitude - self::JST_STANDARD_LONGITUDE) * 4;
+
         return $offset >= 0 ? "+{$offset}分" : "{$offset}分";
     }
 }

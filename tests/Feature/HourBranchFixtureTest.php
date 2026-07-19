@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\SexagenaryService;
 use Carbon\CarbonImmutable;
+use Database\Seeders\TaizanMasterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\CsvFixtureLoader;
@@ -15,7 +16,7 @@ class HourBranchFixtureTest extends TestCase
 
     public function test_hour_branch_boundaries_from_csv_fixture(): void
     {
-        $this->seed(\Database\Seeders\TaizanMasterSeeder::class);
+        $this->seed(TaizanMasterSeeder::class);
 
         $service = app(SexagenaryService::class);
 

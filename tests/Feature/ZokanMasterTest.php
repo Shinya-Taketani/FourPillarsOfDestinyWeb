@@ -61,12 +61,12 @@ class ZokanMasterTest extends TestCase
             $expectedStemId = DB::table('master_stems')->where('name', $case['stem'])->value('id');
 
             $actualStemId = $service->getZokanStemId(
-                (int)$branchId,
+                (int) $branchId,
                 CarbonImmutable::parse($startedAt)->addDays($case['days']),
                 $startedAt,
             );
 
-            $this->assertSame((int)$expectedStemId, $actualStemId);
+            $this->assertSame((int) $expectedStemId, $actualStemId);
         }
     }
 

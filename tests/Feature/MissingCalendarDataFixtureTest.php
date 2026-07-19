@@ -34,7 +34,7 @@ class MissingCalendarDataFixtureTest extends TestCase
 
             try {
                 $ryunenService->resolveRyunenYear($dateTime);
-                $this->fail($sample['sample_id'] . ' should throw CalendarDataUnavailableException.');
+                $this->fail($sample['sample_id'].' should throw CalendarDataUnavailableException.');
             } catch (CalendarDataUnavailableException) {
                 $this->assertSame('calendar_data_unavailable', $sample['expected_behavior']);
             }

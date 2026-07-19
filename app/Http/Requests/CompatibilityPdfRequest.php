@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-class CompatibilityPdfRequest extends CompatibilityAnalyzeRequest
-{
-}
+class CompatibilityPdfRequest extends CompatibilityAnalyzeRequest {}

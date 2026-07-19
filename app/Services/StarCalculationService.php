@@ -23,7 +23,9 @@ readonly class StarCalculationService
         $dayStem = $this->masterData->getStemById($dayStemId);
         $targetStem = $this->masterData->getStemById($targetStemId);
 
-        if (!$dayStem || !$targetStem) return '不明';
+        if (! $dayStem || ! $targetStem) {
+            return '不明';
+        }
 
         // 泰山流：相生・相剋の関係性を数値化 (0:比劫, 1:食傷, 2:財星, 3:官星, 4:印星)
         // 木(1) -> 火(2) -> 土(3) -> 金(4) -> 水(5)
@@ -60,10 +62,11 @@ readonly class StarCalculationService
             7 => [10, 9, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // 庚(金陽)
             8 => [4, 3, 2, 1, 12, 11, 10, 9, 8, 7, 6, 5],  // 辛(金陰)
             9 => [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6], // 壬(水陽)
-            10=> [1, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2],  // 癸(水陰)
+            10 => [1, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2],  // 癸(水陰)
         ];
 
         $stageId = $matrix[$dayStemId][$targetBranchId - 1] ?? 1;
+
         return $this->masterData->twelveLifeStagesById()->get($stageId)?->name ?? '不明';
     }
 }

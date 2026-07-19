@@ -17,6 +17,7 @@ trait NormalizesBirthDateTime
 
         if (str_contains($birthday, 'T')) {
             [$date, $time] = explode('T', $birthday, 2);
+
             return [$date, substr($time, 0, 5)];
         }
 
@@ -29,17 +30,17 @@ trait NormalizesBirthDateTime
 
     protected function combineBirthDateTime(array $data): string
     {
-        return $data['birthday'] . 'T' . $data['birth_time'];
+        return $data['birthday'].'T'.$data['birth_time'];
     }
 
     protected function resolveTargetDateTime(array $data): ?string
     {
-        if (!empty($data['target_datetime'])) {
+        if (! empty($data['target_datetime'])) {
             return $data['target_datetime'];
         }
 
-        if (!empty($data['target_year'])) {
-            return $data['target_year'] . '-07-01T00:00';
+        if (! empty($data['target_year'])) {
+            return $data['target_year'].'-07-01T00:00';
         }
 
         return null;

@@ -96,7 +96,7 @@ class HourPillarBoundaryTest extends TestCase
     }
 
     /**
-     * @param array{stem_id: int, branch_id: int} $pillar
+     * @param  array{stem_id: int, branch_id: int}  $pillar
      */
     private function pillarKanji(array $pillar): string
     {
@@ -109,6 +109,6 @@ class HourPillarBoundaryTest extends TestCase
             7 => '午', 8 => '未', 9 => '申', 10 => '酉', 11 => '戌', 12 => '亥',
         ];
 
-        return $stems[$pillar['stem_id']] . $branches[$pillar['branch_id']];
+        return $stems[$pillar['stem_id']].$branches[$pillar['branch_id']];
     }
 }
