@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Exceptions\CalendarDataUnavailableException;
 use App\Services\SexagenaryService;
 use App\Services\SolarTermService;
 use Carbon\CarbonImmutable;
@@ -17,7 +16,7 @@ class HistoricalCalendarCoverageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_1971_single_appraisal_is_rejected_while_annual_audit_diff_is_unresolved(): void
+    public function test_1971_single_appraisal_uses_the_annual_official_dataset(): void
     {
         $this->seedCalendarEvents();
 
@@ -28,14 +27,15 @@ class HistoricalCalendarCoverageTest extends TestCase
             'gender' => 'male',
             'longitude' => 135.76,
             'target_datetime' => '2026-07-01T00:00',
-        ])->assertUnprocessable()
-            ->assertJsonPath('status', 'error')
-            ->assertJsonPath('message', '指定年の採用済み立春データが未登録です: 1971年');
+        ])->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S1')
+            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source.verification_status', 'verified');
 
-        $this->assertAuditRejectedYear(1971, '1971-02-04 20:25:00', '1971-02-04 20:26:00');
+        $this->assertAnnualAndAuditEvents(1971, '1971-02-04 20:26:00', '1971-02-04 20:25:00');
     }
 
-    public function test_1980_compatibility_is_rejected_while_annual_audit_diff_is_unresolved(): void
+    public function test_1980_single_and_compatibility_appraisals_succeed(): void
     {
         $this->seedCalendarEvents();
 
@@ -46,15 +46,23 @@ class HistoricalCalendarCoverageTest extends TestCase
             'longitude' => 135.76,
         ];
 
+        $this->postJson('/api/analyze', [
+            ...$person,
+            'birth_time' => '09:00',
+            'birthday' => '1980-01-01',
+            'target_datetime' => '2026-07-01T00:00',
+        ])->assertOk()
+            ->assertJsonPath('status', 'success');
+
         $this->postJson('/api/analyze-compatibility', [
             'person1' => $person,
             'person2' => [...$person, 'name' => '相手', 'gender' => 'female'],
             'target_datetime' => '2026-07-01T00:00',
-        ])->assertUnprocessable()
-            ->assertJsonPath('status', 'error')
-            ->assertJsonPath('message', '指定年の採用済み立春データが未登録です: 1980年');
+        ])->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonStructure(['data' => ['person1_result', 'person2_result', 'person1', 'person2']]);
 
-        $this->assertAuditRejectedYear(1980, '1980-02-05 01:09:00', '1980-02-05 01:10:00');
+        $this->assertAnnualAndAuditEvents(1980, '1980-02-05 01:10:00', '1980-02-05 01:09:00');
     }
 
     public function test_2026_year_pillar_boundary_remains_available_at_the_verified_minute(): void
@@ -65,24 +73,23 @@ class HistoricalCalendarCoverageTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame('2026-02-04 05:02:00', $event->started_at);
+        $this->assertSame('S1', $event->source_rank);
         $this->assertSame('verified', $event->verification_status);
     }
 
-    public function test_rejected_1971_and_1980_boundaries_do_not_silently_select_a_pillar(): void
+    public function test_1971_and_1980_year_pillars_switch_at_the_annual_official_boundary(): void
     {
         $this->seedCalendarEvents();
         $service = app(SexagenaryService::class);
 
         foreach ([
-            '1971-02-04 20:25:00', '1971-02-04 20:26:00', '1971-02-04 20:27:00',
-            '1980-02-05 01:09:00', '1980-02-05 01:10:00', '1980-02-05 01:11:00',
-        ] as $dateTime) {
-            try {
-                $service->getPillarYear(CarbonImmutable::parse($dateTime, 'Asia/Tokyo'));
-                $this->fail("採用保留年の境界を計算してはいけません: {$dateTime}");
-            } catch (CalendarDataUnavailableException) {
-                $this->addToAssertionCount(1);
-            }
+            1971 => ['20:25:00', '20:26:00', '20:27:00'],
+            1980 => ['01:09:00', '01:10:00', '01:11:00'],
+        ] as $year => [$beforeTime, $atTime, $afterTime]) {
+            $date = $year === 1971 ? '1971-02-04' : '1980-02-05';
+            $this->assertSame($year - 1, $service->getPillarYear(CarbonImmutable::parse("{$date} {$beforeTime}", 'Asia/Tokyo')));
+            $this->assertSame($year, $service->getPillarYear(CarbonImmutable::parse("{$date} {$atTime}", 'Asia/Tokyo')));
+            $this->assertSame($year, $service->getPillarYear(CarbonImmutable::parse("{$date} {$afterTime}", 'Asia/Tokyo')));
         }
     }
 
@@ -112,18 +119,31 @@ class HistoricalCalendarCoverageTest extends TestCase
         $this->seed(SolarTermEventSeeder::class);
     }
 
-    private function assertAuditRejectedYear(int $year, string $actualLichun, string $expectedLichun): void
+    private function assertAnnualAndAuditEvents(int $year, string $annualLichun, string $longTermLichun): void
     {
         $definitionId = DB::table('solar_term_definitions')->where('name', '立春')->value('id');
-        $event = DB::table('solar_term_events')
+        $annualEvent = DB::table('solar_term_events')
             ->where('year', $year)
             ->where('solar_term_definition_id', $definitionId)
+            ->where('source_rank', 'S1')
+            ->first();
+        $longTermEvent = DB::table('solar_term_events')
+            ->where('year', $year)
+            ->where('solar_term_definition_id', $definitionId)
+            ->where('source_rank', 'S2')
             ->first();
 
-        $this->assertNotNull($event);
-        $this->assertSame($actualLichun, $event->started_at);
-        $this->assertFalse((bool) $event->adopted);
-        $this->assertSame('rejected', $event->verification_status);
-        $this->assertStringContainsString($expectedLichun, (string) $event->note);
+        $this->assertNotNull($annualEvent);
+        $this->assertSame($annualLichun, $annualEvent->started_at);
+        $this->assertTrue((bool) $annualEvent->adopted);
+        $this->assertSame('verified', $annualEvent->verification_status);
+        $this->assertSame('Asia/Tokyo', $annualEvent->timezone);
+        $this->assertSame('minute', $annualEvent->precision_level);
+
+        $this->assertNotNull($longTermEvent);
+        $this->assertSame($longTermLichun, $longTermEvent->started_at);
+        $this->assertFalse((bool) $longTermEvent->adopted);
+        $this->assertSame('superseded_discrepant', $longTermEvent->verification_status);
+        $this->assertStringContainsString('1分差', (string) $longTermEvent->note);
     }
 }

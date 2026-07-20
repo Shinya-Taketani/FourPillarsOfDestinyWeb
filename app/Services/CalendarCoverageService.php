@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\SolarTermSourcePriority;
 use Illuminate\Support\Facades\DB;
 
 final class CalendarCoverageService
@@ -38,6 +39,7 @@ final class CalendarCoverageService
             )
             ->select('year')
             ->where('solar_term_events.adopted', true)
+            ->whereIn('solar_term_events.source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
             ->whereBetween('year', [self::INTERNAL_MIN_YEAR, self::INTERNAL_MAX_YEAR])
             ->groupBy('year')
             ->havingRaw('COUNT(*) = ?', [self::TERMS_PER_YEAR])

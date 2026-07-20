@@ -31,7 +31,8 @@ class FetchNaojSolarTermsCommandTest extends TestCase
             $rows = app(SolarTermCsvReader::class)->read($outputPath, 2026, 2026, $outputPath.'.sha256');
             $this->assertCount(24, $rows);
             $this->assertSame('2026-02-04 05:02:00', collect($rows)->firstWhere('term_name', '立春')['started_at']);
-            $this->assertSame('verified', $rows[0]['verification_status']);
+            $this->assertSame('imported', $rows[0]['verification_status']);
+            $this->assertTrue($rows[0]['adopted']);
             $this->assertSame('S2', $rows[0]['source_rank']);
             $this->assertFileExists($rawDirectory.'/2026.html');
             $this->assertFileExists($rawDirectory.'/2026.json');

@@ -58,6 +58,8 @@ readonly class SexagenaryService
             'source_url' => $event->source_url,
             'source_rank' => $event->source_rank,
             'adopted' => (bool) $event->adopted,
+            'verification_status' => $event->verification_status,
+            'precision_level' => $event->precision_level,
             'note' => $event->note,
         ];
     }

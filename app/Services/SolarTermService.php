@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\CalendarDataIntegrityException;
+use App\Support\SolarTermSourcePriority;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +20,7 @@ readonly class SolarTermService
             return null;
         }
 
-        return DB::table('solar_term_events')
+        $events = DB::table('solar_term_events')
             ->join(
                 'solar_term_definitions',
                 'solar_term_definitions.id',
@@ -35,8 +37,15 @@ readonly class SolarTermService
             ->where('solar_term_definitions.name', $termName)
             ->where('solar_term_events.year', $year)
             ->where('solar_term_events.adopted', true)
+            ->whereIn('solar_term_events.source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
             ->orderBy('solar_term_events.started_at')
-            ->first();
+            ->get();
+
+        if ($events->count() > 1) {
+            throw CalendarDataIntegrityException::forDuplicateAdoptedEvent($termName, $year);
+        }
+
+        return $events->first();
     }
 
     public function getLichunDateTime(int $year): ?CarbonImmutable
@@ -71,6 +80,7 @@ readonly class SolarTermService
                 'solar_term_definitions.display_order',
             )
             ->where('solar_term_events.adopted', true)
+            ->whereIn('solar_term_events.source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
             ->where('solar_term_definitions.is_month_boundary', true)
             ->where('solar_term_events.started_at', '<=', $dateTime->toDateTimeString())
             ->orderBy('solar_term_events.started_at', 'desc')
@@ -100,6 +110,7 @@ readonly class SolarTermService
                 'solar_term_definitions.display_order',
             )
             ->where('solar_term_events.adopted', true)
+            ->whereIn('solar_term_events.source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
             ->where('solar_term_definitions.is_month_boundary', true)
             ->where('solar_term_events.started_at', '>', $dateTime->toDateTimeString())
             ->orderBy('solar_term_events.started_at')
@@ -129,6 +140,7 @@ readonly class SolarTermService
                 'solar_term_definitions.display_order',
             )
             ->where('solar_term_events.adopted', true)
+            ->whereIn('solar_term_events.source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
             ->where('solar_term_definitions.is_month_boundary', true)
             ->where('solar_term_events.started_at', '<=', $dateTime->toDateTimeString())
             ->orderBy('solar_term_events.started_at', 'desc')
@@ -159,6 +171,7 @@ readonly class SolarTermService
             )
             ->where('solar_term_events.year', $year)
             ->where('solar_term_events.adopted', true)
+            ->whereIn('solar_term_events.source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
             ->where('solar_term_definitions.is_month_boundary', true)
             ->orderBy('solar_term_definitions.display_order')
             ->get();
@@ -166,10 +179,17 @@ readonly class SolarTermService
 
     private function hasCompleteAdoptedYear(int $year): bool
     {
-        return DB::table('solar_term_events')
+        $counts = DB::table('solar_term_events')
             ->where('year', $year)
             ->where('adopted', true)
-            ->distinct('solar_term_definition_id')
-            ->count('solar_term_definition_id') === self::TERMS_PER_COMPLETE_YEAR;
+            ->whereIn('source_rank', array_keys(SolarTermSourcePriority::PRIORITIES))
+            ->selectRaw('COUNT(*) AS total, COUNT(DISTINCT solar_term_definition_id) AS distinct_total')
+            ->first();
+
+        if ((int) $counts->total !== (int) $counts->distinct_total) {
+            throw CalendarDataIntegrityException::forDuplicateAdoptedYear($year);
+        }
+
+        return (int) $counts->distinct_total === self::TERMS_PER_COMPLETE_YEAR;
     }
 }

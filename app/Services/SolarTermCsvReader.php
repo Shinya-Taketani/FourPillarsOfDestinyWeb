@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Services\Calendar\NaojSolarTermClient;
 use App\Services\Calendar\SolarTermCsvWriter;
-use App\Support\NaojSolarTermAuditCatalog;
 use App\Support\SolarTermCatalog;
 use DateTimeImmutable;
 use RuntimeException;
@@ -218,34 +217,14 @@ final class SolarTermCsvReader
                 throw new RuntimeException("{$year}年の二十四節気が不完全です（全体: ".count($yearRows)."、正節: {$majorCount}、中気: {$middleCount}）。");
             }
 
-            $this->validateYearAuditState($year, $yearRows);
+            if (count(array_unique(array_column($yearRows, 'raw_content_hash'))) !== 1) {
+                throw new RuntimeException("{$year}年のraw content hashが統一されていません。");
+            }
         }
 
         $expectedCount = ($toYear - $fromYear + 1) * 24;
         if (count($rows) !== $expectedCount) {
             throw new RuntimeException('二十四節気CSVの全体件数が不正です。');
-        }
-    }
-
-    /** @param list<SolarTermCsvRow> $rows */
-    private function validateYearAuditState(int $year, array $rows): void
-    {
-        $mismatches = NaojSolarTermAuditCatalog::mismatches($year, $rows);
-        $hasAuditReference = isset(NaojSolarTermAuditCatalog::EXPECTED_EVENTS[$year]);
-        $expectedStatus = $mismatches === []
-            ? ($hasAuditReference ? 'verified' : 'imported')
-            : 'rejected';
-        $expectedAdopted = $expectedStatus !== 'rejected';
-        $hashes = array_unique(array_column($rows, 'raw_content_hash'));
-
-        foreach ($rows as $row) {
-            if ($row['verification_status'] !== $expectedStatus || $row['adopted'] !== $expectedAdopted) {
-                throw new RuntimeException("{$year}年の年次監査状態が取得値と一致しません。");
-            }
-        }
-
-        if (count($hashes) !== 1) {
-            throw new RuntimeException("{$year}年のraw content hashが統一されていません。");
         }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\AnnualSolarTermCsvReader;
 use App\Services\SolarTermCsvReader;
 use App\Support\SolarTermCatalog;
 use Database\Seeders\SolarTermDefinitionSeeder;
@@ -16,7 +17,7 @@ class SolarTermDatasetIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_seeded_naoj_dataset_is_structurally_complete_and_preserves_audit_decisions(): void
+    public function test_seeded_naoj_dataset_applies_s1_priority_and_preserves_s2_for_audit(): void
     {
         $this->seed(TaizanMasterSeeder::class);
         $this->seed(SolarTermDefinitionSeeder::class);
@@ -25,29 +26,35 @@ class SolarTermDatasetIntegrityTest extends TestCase
         $this->assertSame(24, DB::table('solar_term_definitions')->count());
         $this->assertSame(12, DB::table('solar_term_definitions')->where('is_month_boundary', true)->count());
         $this->assertSame(12, DB::table('solar_term_definitions')->where('term_type', 'middle_term')->count());
-        $this->assertSame(4872, DB::table('solar_term_events')->count());
-        $this->assertSame(4824, DB::table('solar_term_events')->where('adopted', true)->where('source_rank', 'S2')->count());
-        $this->assertSame(48, DB::table('solar_term_events')->where('verification_status', 'rejected')->where('adopted', false)->count());
-        $this->assertSame(24, DB::table('solar_term_events')->where('verification_status', 'verified')->where('adopted', true)->count());
-        $this->assertSame(4872, DB::table('solar_term_events')->where('timezone', 'Asia/Tokyo')->where('calendar_system', 'modern_astronomical')->count());
-        $this->assertSame(4872, DB::table('solar_term_events')->where('precision_level', 'minute')->count());
-        $this->assertSame(4872, DB::table('solar_term_events')->whereNotNull('source_accessed_on')->whereNotNull('raw_content_hash')->count());
+        $this->assertSame(4944, DB::table('solar_term_events')->count());
+        $this->assertSame(4872, DB::table('solar_term_events')->where('source_rank', 'S2')->count());
+        $this->assertSame(72, DB::table('solar_term_events')->where('source_rank', 'S1')->count());
+        $this->assertSame(4872, DB::table('solar_term_events')->where('adopted', true)->count());
+        $this->assertSame(4800, DB::table('solar_term_events')->where('adopted', true)->where('source_rank', 'S2')->count());
+        $this->assertSame(72, DB::table('solar_term_events')->where('adopted', true)->where('source_rank', 'S1')->count());
+        $this->assertSame(72, DB::table('solar_term_events')->whereIn('verification_status', ['superseded_matched', 'superseded_discrepant'])->where('adopted', false)->count());
+        $this->assertSame(0, DB::table('solar_term_events')->where('verification_status', 'rejected')->count());
+        $this->assertSame(72, DB::table('solar_term_events')->where('verification_status', 'verified')->where('adopted', true)->count());
+        $this->assertSame(4944, DB::table('solar_term_events')->where('timezone', 'Asia/Tokyo')->where('calendar_system', 'modern_astronomical')->count());
+        $this->assertSame(4944, DB::table('solar_term_events')->where('precision_level', 'minute')->count());
+        $this->assertSame(4872, DB::table('solar_term_events')->whereNotNull('raw_content_hash')->count());
 
         $termTypeCounts = DB::table('solar_term_events')
             ->join('solar_term_definitions', 'solar_term_definitions.id', '=', 'solar_term_events.solar_term_definition_id')
             ->selectRaw('solar_term_definitions.term_type, COUNT(*) AS aggregate')
             ->groupBy('solar_term_definitions.term_type')
             ->pluck('aggregate', 'term_type');
-        $this->assertSame(2436, (int) $termTypeCounts['major_term']);
-        $this->assertSame(2436, (int) $termTypeCounts['middle_term']);
+        $this->assertSame(2472, (int) $termTypeCounts['major_term']);
+        $this->assertSame(2472, (int) $termTypeCounts['middle_term']);
 
         $yearCounts = DB::table('solar_term_events')->selectRaw('year, COUNT(*) AS aggregate')->groupBy('year')->orderBy('year')->pluck('aggregate', 'year');
         $this->assertCount(203, $yearCounts);
-        foreach ($yearCounts as $count) {
-            $this->assertSame(24, (int) $count);
+        foreach ($yearCounts as $year => $count) {
+            $this->assertSame(in_array((int) $year, [1971, 1980, 2026], true) ? 48 : 24, (int) $count);
         }
 
         $duplicates = DB::table('solar_term_events')
+            ->where('adopted', true)
             ->select('year', 'solar_term_definition_id')
             ->groupBy('year', 'solar_term_definition_id')
             ->havingRaw('COUNT(*) > 1')
@@ -78,7 +85,7 @@ class SolarTermDatasetIntegrityTest extends TestCase
                 'solar_term_definition_id' => DB::table('solar_term_definitions')->where('name', $name)->value('id'),
                 'started_at' => $startedAt,
                 'adopted' => true,
-                'source_rank' => 'S2',
+                'source_rank' => 'S1',
                 'verification_status' => 'verified',
             ]);
         }
@@ -87,17 +94,36 @@ class SolarTermDatasetIntegrityTest extends TestCase
             1971 => ['actual' => '1971-02-04 20:25:00', 'expected' => '1971-02-04 20:26:00'],
             1980 => ['actual' => '1980-02-05 01:09:00', 'expected' => '1980-02-05 01:10:00'],
         ] as $year => $audit) {
-            $event = DB::table('solar_term_events')
+            $annualEvent = DB::table('solar_term_events')
                 ->where('year', $year)
                 ->where('solar_term_definition_id', DB::table('solar_term_definitions')->where('name', '立春')->value('id'))
+                ->where('source_rank', 'S1')
+                ->first();
+            $auditEvent = DB::table('solar_term_events')
+                ->where('year', $year)
+                ->where('solar_term_definition_id', DB::table('solar_term_definitions')->where('name', '立春')->value('id'))
+                ->where('source_rank', 'S2')
                 ->first();
 
-            $this->assertNotNull($event);
-            $this->assertSame($audit['actual'], $event->started_at);
-            $this->assertFalse((bool) $event->adopted);
-            $this->assertSame('rejected', $event->verification_status);
-            $this->assertStringContainsString($audit['expected'], (string) $event->note);
+            $this->assertNotNull($annualEvent);
+            $this->assertSame($audit['expected'], $annualEvent->started_at);
+            $this->assertTrue((bool) $annualEvent->adopted);
+            $this->assertSame('verified', $annualEvent->verification_status);
+
+            $this->assertNotNull($auditEvent);
+            $this->assertSame($audit['actual'], $auditEvent->started_at);
+            $this->assertFalse((bool) $auditEvent->adopted);
+            $this->assertSame('superseded_discrepant', $auditEvent->verification_status);
+            $this->assertStringContainsString($audit['expected'], (string) $auditEvent->note);
         }
+
+        $this->assertDatabaseHas('solar_term_events', [
+            'year' => 2026,
+            'solar_term_definition_id' => DB::table('solar_term_definitions')->where('name', '立春')->value('id'),
+            'source_rank' => 'S2',
+            'adopted' => false,
+            'verification_status' => 'superseded_matched',
+        ]);
     }
 
     public function test_csv_checksum_is_valid_and_incomplete_csv_is_rejected(): void
@@ -105,6 +131,11 @@ class SolarTermDatasetIntegrityTest extends TestCase
         $csvPath = database_path('data/solar_terms/naoj_1899_2101.csv');
         $checksum = preg_split('/\s+/', trim((string) file_get_contents($csvPath.'.sha256')))[0] ?? '';
         $this->assertSame($checksum, hash_file('sha256', $csvPath));
+
+        $annualCsvPath = database_path('data/solar_terms/naoj_annual_official_events.csv');
+        $annualChecksum = preg_split('/\s+/', trim((string) file_get_contents($annualCsvPath.'.sha256')))[0] ?? '';
+        $this->assertSame($annualChecksum, hash_file('sha256', $annualCsvPath));
+        $this->assertCount(72, app(AnnualSolarTermCsvReader::class)->read($annualCsvPath, $annualCsvPath.'.sha256'));
 
         $temporaryPath = tempnam(sys_get_temp_dir(), 'solar-terms-incomplete-');
         $this->assertNotFalse($temporaryPath);
@@ -174,13 +205,40 @@ class SolarTermDatasetIntegrityTest extends TestCase
         $this->seed(TaizanMasterSeeder::class);
         $this->seed(SolarTermDefinitionSeeder::class);
         $this->seed(SolarTermEventSeeder::class);
-        DB::table('solar_term_events')->update(['source_rank' => 'S']);
+        $eventIds = DB::table('solar_term_events')
+            ->orderBy('year')
+            ->orderBy('solar_term_definition_id')
+            ->orderBy('source_rank')
+            ->pluck('id')
+            ->all();
+        DB::table('solar_term_events')->insert([
+            'solar_term_definition_id' => DB::table('solar_term_definitions')->where('name', '立春')->value('id'),
+            'year' => 1970,
+            'started_at' => '1970-02-04 14:46:00',
+            'timezone' => 'Asia/Tokyo',
+            'calendar_system' => 'modern_astronomical',
+            'source_title' => '旧データ',
+            'source_rank' => 'S',
+            'adopted' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->seed(SolarTermEventSeeder::class);
         $this->seed(SolarTermEventSeeder::class);
 
-        $this->assertSame(4872, DB::table('solar_term_events')->count());
+        $this->assertSame(4944, DB::table('solar_term_events')->count());
         $this->assertSame(4872, DB::table('solar_term_events')->where('source_rank', 'S2')->count());
+        $this->assertSame(72, DB::table('solar_term_events')->where('source_rank', 'S1')->count());
         $this->assertSame(0, DB::table('solar_term_events')->where('source_rank', 'S')->count());
+        $this->assertSame(
+            $eventIds,
+            DB::table('solar_term_events')
+                ->orderBy('year')
+                ->orderBy('solar_term_definition_id')
+                ->orderBy('source_rank')
+                ->pluck('id')
+                ->all(),
+        );
     }
 }

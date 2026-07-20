@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\CalendarDataIntegrityException;
 use App\Services\SolarTermService;
+use App\Support\SolarTermSourcePriority;
 use Carbon\CarbonImmutable;
 use Database\Seeders\SolarTermDefinitionSeeder;
 use Database\Seeders\SolarTermEventSeeder;
@@ -45,7 +47,7 @@ class SolarTermEventTest extends TestCase
             DB::table('solar_term_events')
                 ->where('year', 2026)
                 ->where('adopted', true)
-                ->where('source_rank', 'S2')
+                ->where('source_rank', 'S1')
                 ->count(),
         );
     }
@@ -83,7 +85,8 @@ class SolarTermEventTest extends TestCase
         $event = app(SolarTermService::class)->getAdoptedSolarTermEvent('立春', 2026);
 
         $this->assertSame('2026-02-04 05:02:00', $event?->started_at);
-        $this->assertSame('S2', $event?->source_rank);
+        $this->assertSame('S1', $event?->source_rank);
+        $this->assertSame('verified', $event?->verification_status);
     }
 
     public function test_month_boundary_comparison_uses_adopted_events(): void
@@ -112,6 +115,44 @@ class SolarTermEventTest extends TestCase
         $this->assertNull($service->getAdoptedSolarTermEvent('立春', 2102));
         $this->assertNull($service->getLichunDateTime(2102));
         $this->assertCount(0, $service->getMonthBoundaryEvents(2102));
+    }
+
+    public function test_source_priority_is_explicit_and_unknown_ranks_are_not_known(): void
+    {
+        $this->assertGreaterThan(
+            SolarTermSourcePriority::priority('S2'),
+            SolarTermSourcePriority::priority('S1'),
+        );
+        $this->assertFalse(SolarTermSourcePriority::isKnown('UNKNOWN'));
+    }
+
+    public function test_service_rejects_multiple_adopted_rows_instead_of_silently_selecting_one(): void
+    {
+        $this->seedCalendarEvents();
+        $definitionId = DB::table('solar_term_definitions')->where('name', '立春')->value('id');
+
+        DB::statement('DROP INDEX solar_term_events_one_adopted_per_term');
+
+        try {
+            DB::table('solar_term_events')
+                ->where('year', 2026)
+                ->where('solar_term_definition_id', $definitionId)
+                ->where('source_rank', 'S2')
+                ->update(['adopted' => true]);
+
+            $this->expectException(CalendarDataIntegrityException::class);
+            app(SolarTermService::class)->getAdoptedSolarTermEvent('立春', 2026);
+        } finally {
+            DB::table('solar_term_events')
+                ->where('year', 2026)
+                ->where('solar_term_definition_id', $definitionId)
+                ->where('source_rank', 'S2')
+                ->update(['adopted' => false]);
+            DB::statement(
+                'CREATE UNIQUE INDEX solar_term_events_one_adopted_per_term '
+                .'ON solar_term_events (year, solar_term_definition_id) WHERE adopted = true',
+            );
+        }
     }
 
     private function seedCalendarEvents(): void

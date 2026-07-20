@@ -7,7 +7,6 @@ namespace App\Console\Commands;
 use App\Services\Calendar\NaojSolarTermClient;
 use App\Services\Calendar\SolarTermCsvWriter;
 use App\Services\NaojSolarTermPageParser;
-use App\Support\NaojSolarTermAuditCatalog;
 use App\Support\SolarTermCatalog;
 use Illuminate\Console\Command;
 use Throwable;
@@ -49,25 +48,11 @@ class FetchNaojSolarTermsCommand extends Command
         $rawDirectory = str_starts_with($rawDirectoryOption, '/') ? $rawDirectoryOption : base_path($rawDirectoryOption);
         $allRows = [];
         $failedYears = [];
-        $rejectedYears = [];
 
         for ($year = $from; $year <= $to; $year++) {
             try {
                 $raw = $client->fetch($year, $rawDirectory, (bool) $this->option('refresh'));
                 $events = $parser->parse($raw['body'], $year);
-                $mismatches = NaojSolarTermAuditCatalog::mismatches($year, $events);
-                $hasAuditReference = isset(NaojSolarTermAuditCatalog::EXPECTED_EVENTS[$year]);
-                $verificationStatus = $mismatches === []
-                    ? ($hasAuditReference ? 'verified' : 'imported')
-                    : 'rejected';
-                $adopted = $verificationStatus !== 'rejected';
-
-                if ($mismatches !== []) {
-                    $rejectedYears[] = $year;
-                }
-
-                $note = $this->buildNote($year, $mismatches);
-
                 foreach ($events as $event) {
                     $allRows[] = [
                         ...$event,
@@ -76,18 +61,18 @@ class FetchNaojSolarTermsCommand extends Command
                         'source_title' => self::SOURCE_TITLE,
                         'source_url' => $raw['source_url'],
                         'source_rank' => 'S2',
-                        'adopted' => $adopted ? 'true' : 'false',
+                        'adopted' => 'true',
                         'precision_level' => 'minute',
                         'source_accessed_on' => $raw['source_accessed_on'],
                         'source_citation_text' => '国立天文台ホームページより引用',
                         'raw_content_hash' => $raw['raw_content_hash'],
-                        'verification_status' => $verificationStatus,
-                        'note' => $note,
+                        'verification_status' => 'imported',
+                        'note' => $this->buildNote(),
                     ];
                 }
 
                 $cacheLabel = $raw['from_cache'] ? 'raw再利用' : '取得';
-                $this->line("{$year}: 24件{$cacheLabel} / {$verificationStatus}");
+                $this->line("{$year}: 24件{$cacheLabel} / imported");
             } catch (Throwable $exception) {
                 $failedYears[] = $year;
                 $this->error("{$year}: {$exception->getMessage()}");
@@ -129,7 +114,6 @@ class FetchNaojSolarTermsCommand extends Command
             ['総件数', (string) count($allRows)],
             ['正節件数', (string) $majorCount],
             ['中気件数', (string) $middleCount],
-            ['監査保留年', $rejectedYears === [] ? 'なし' : implode(', ', $rejectedYears)],
             ['出力先', $outputPath],
             ['SHA-256', $checksum],
         ]);
@@ -137,29 +121,8 @@ class FetchNaojSolarTermsCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * @param  list<array{term_name:string,actual:string,expected:string}>  $mismatches
-     */
-    private function buildNote(int $year, array $mismatches): string
+    private function buildNote(): string
     {
-        $base = '国立天文台長期版の中央標準時。公式精度は分、秒は00秒。24:00表記は翌日00:00に正規化。';
-
-        if ($mismatches === []) {
-            return $base;
-        }
-
-        $details = [];
-
-        foreach ($mismatches as $mismatch) {
-            $details[] = sprintf(
-                '%s: 長期版=%s / 年次監査値=%s',
-                $mismatch['term_name'],
-                $mismatch['actual'],
-                $mismatch['expected'],
-            );
-        }
-
-        return $base.' 年次監査値と不一致のため採用保留。監査元: '
-            .NaojSolarTermAuditCatalog::SOURCE_URLS[$year].'。'.implode(' / ', $details);
+        return '国立天文台長期版の中央標準時。公式精度は分、秒は00秒。24:00表記は翌日00:00に正規化。';
     }
 }
