@@ -3,7 +3,6 @@ import axios from 'axios';
 
 export const useCalendarCoverage = () => {
     const coverage = ref(null);
-    const coverageError = ref('');
 
     const birthDateTimeMin = computed(() => (
         coverage.value ? `${coverage.value.birth_date.min_year}-01-01T00:00` : undefined
@@ -17,13 +16,11 @@ export const useCalendarCoverage = () => {
             const response = await axios.get('/api/calendar-coverage');
             coverage.value = response.data.data;
         } catch {
-            coverageError.value = '節入りデータの対応範囲を取得できませんでした。';
+            coverage.value = null;
         }
     });
 
     return {
-        coverage,
-        coverageError,
         birthDateTimeMin,
         birthDateTimeMax,
     };

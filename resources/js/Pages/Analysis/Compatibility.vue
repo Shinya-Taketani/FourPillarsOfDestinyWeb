@@ -14,7 +14,7 @@ const person2 = ref({ name: '相手', birthday: DEFAULT_BIRTH_DATETIME, longitud
 const result = ref(null);
 const loading = ref(false);
 const pdfLoading = ref(false);
-const { coverage, coverageError, birthDateTimeMin, birthDateTimeMax } = useCalendarCoverage();
+const { birthDateTimeMin, birthDateTimeMax } = useCalendarCoverage();
 const {
     generalError,
     clearErrors,
@@ -95,19 +95,6 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
     <Head title="相性精密鑑定" />
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen font-sans">
         <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">相性精密鑑定</h1>
-
-        <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
-            <span v-if="coverage">
-                <template v-if="coverage.complete">
-                    正式採用済みの節入りデータ対応範囲: {{ coverage.birth_date.min_year }}年〜{{ coverage.birth_date.max_year }}年
-                </template>
-                <template v-else>
-                    節入りデータに欠損があります。未登録年: {{ coverage.missing_years.join(', ') }}
-                </template>
-            </span>
-            <span v-else-if="coverageError">{{ coverageError }}</span>
-            <span v-else>節入りデータの対応範囲を確認中です。</span>
-        </p>
 
         <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
             {{ generalError }}

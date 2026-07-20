@@ -20,7 +20,7 @@ const result = ref(null);
 const loading = ref(false);
 const pdfLoading = ref(false);
 const activeMonth = ref(null);
-const { coverage, coverageError, birthDateTimeMin, birthDateTimeMax } = useCalendarCoverage();
+const { birthDateTimeMin, birthDateTimeMax } = useCalendarCoverage();
 const {
     generalError,
     clearErrors,
@@ -105,19 +105,6 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen text-gray-800">
         <div class="bg-white p-8 rounded-xl shadow-lg mb-8 border-b-8 border-indigo-600">
             <h1 class="text-3xl font-black mb-8 text-indigo-900 border-l-8 border-indigo-600 pl-4">運命鑑定</h1>
-
-            <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
-                <span v-if="coverage">
-                    <template v-if="coverage.complete">
-                        正式採用済みの節入りデータ対応範囲: {{ coverage.birth_date.min_year }}年〜{{ coverage.birth_date.max_year }}年
-                    </template>
-                    <template v-else>
-                        節入りデータに欠損があります。未登録年: {{ coverage.missing_years.join(', ') }}
-                    </template>
-                </span>
-                <span v-else-if="coverageError">{{ coverageError }}</span>
-                <span v-else>節入りデータの対応範囲を確認中です。</span>
-            </p>
 
             <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                 {{ generalError }}
