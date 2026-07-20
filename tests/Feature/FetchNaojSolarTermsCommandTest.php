@@ -12,6 +12,14 @@ use Tests\TestCase;
 
 class FetchNaojSolarTermsCommandTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::preventStrayRequests();
+        File::ensureDirectoryExists(storage_path('framework/testing'));
+    }
+
     public function test_command_posts_the_confirmed_form_and_generates_a_valid_csv_atomically(): void
     {
         Http::fake([

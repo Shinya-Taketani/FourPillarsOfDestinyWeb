@@ -159,6 +159,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+          tools: composer:v2
+        env:
+          fail-fast: "true"
+
+      - name: Resolve Composer cache directory
+        id: frontend-composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.frontend-composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.4-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Verify Ziggy assets
+        run: test -d vendor/tightenco/ziggy
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:

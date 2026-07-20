@@ -139,7 +139,18 @@ final class NaojSolarTermPageParser
             throw new RuntimeException('国立天文台HTMLの文字コードを判定できませんでした。');
         }
 
-        return $encoding === 'UTF-8' ? $html : mb_convert_encoding($html, 'UTF-8', $encoding);
+        $utf8Html = $encoding === 'UTF-8' ? $html : mb_convert_encoding($html, 'UTF-8', $encoding);
+        $normalizedHtml = preg_replace(
+            '/charset\s*=\s*(["\']?)EUC-JP\1/i',
+            'charset=UTF-8',
+            $utf8Html,
+        );
+
+        if ($normalizedHtml === null) {
+            throw new RuntimeException('国立天文台HTMLの文字コード宣言を正規化できませんでした。');
+        }
+
+        return $normalizedHtml;
     }
 
     private function normalizeText(string $value): string
