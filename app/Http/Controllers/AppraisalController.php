@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\CalendarDataUnavailableException;
+use App\Http\Requests\AppraisalPdfRequest;
 use App\Services\DestinyCalculationService;
-use Illuminate\Http\Request;
+use App\Support\PdfFileNameSanitizer;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Dompdf\Options;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class AppraisalController extends Controller
 {
@@ -13,54 +17,70 @@ class AppraisalController extends Controller
         protected DestinyCalculationService $calculationService
     ) {}
 
-    public function downloadPdf(Request $request)
+    public function downloadPdf(AppraisalPdfRequest $request): Response
     {
-        // 1. 入力値の取得
-        $name = $request->input('name', '鑑定者');
-        $birthday = $request->input('birthday');
-        $longitude = (float) $request->input('longitude');
-        $gender = $request->input('gender', 'male');
+        $validated = $request->validatedForAnalysis();
+        $name = $validated['name'] !== '' ? $validated['name'] : '鑑定者';
 
-        // 2. 鑑定データの算出
-        $result = $this->calculationService->analyze($birthday, $longitude, $gender);
-        
-        $currentMonthIdx = (int)date('n') - 1; 
-        $currentMonthData = $result['getsuun'][$currentMonthIdx] ?? $result['getsuun'][0];
+        try {
+            $result = $this->calculationService->analyze(
+                $validated['birth_datetime'],
+                $validated['longitude'],
+                $validated['gender'],
+                $validated['target_datetime'],
+            );
 
-        $data = [
-            'user' => [
-                'name' => $name,
-                'birthday' => $birthday,
-                'gender' => $gender === 'male' ? '男性' : '女性',
-            ],
-            'result' => $result,
-            'appraisal' => $result['appraisal'],
-            'currentMonth' => $currentMonthData,
-        ];
+            $currentMonthIdx = (int) date('n') - 1;
+            $currentMonthData = $result['getsuun'][$currentMonthIdx] ?? $result['getsuun'][0];
 
-        // 3. DomPDFオプションの設定
-        Pdf::setOption([
-            'fontDir' => storage_path('fonts'),
-            'fontCache' => storage_path('fonts'),
-            'defaultFont' => 'NotoSansJP',
-            'isHtml5ParserEnabled' => true,
+            $data = [
+                'user' => [
+                    'name' => $name,
+                    'birthday' => $validated['birth_datetime'],
+                    'gender' => $validated['gender'] === 'male' ? '男性' : '女性',
+                ],
+                'result' => $result,
+                'appraisal' => $result['appraisal'],
+                'currentMonth' => $currentMonthData,
+            ];
 
-            // ローカルフォントを使うだけなら remote は不要
-            'isRemoteEnabled' => false,
+            // 3. DomPDFオプションの設定
+            Pdf::setOption([
+                'fontDir' => storage_path('fonts'),
+                'fontCache' => storage_path('fonts'),
+                'defaultFont' => 'NotoSansJP',
+                'isHtml5ParserEnabled' => true,
 
-            // storage/fonts が base_path 配下なので base_path で問題なし
-            'chroot' => base_path(),
+                // ローカルフォントを使うだけなら remote は不要
+                'isRemoteEnabled' => false,
 
-            // 日本語フォントのPDFサイズ肥大化を抑えたい場合
-            'isFontSubsettingEnabled' => true,
-        ]);
+                // storage/fonts が base_path 配下なので base_path で問題なし
+                'chroot' => base_path(),
 
-        $pdf = Pdf::loadView('pdf.appraisal', $data)
-            ->setPaper('a4', 'portrait');
+                // 日本語フォントのPDFサイズ肥大化を抑えたい場合
+                'isFontSubsettingEnabled' => true,
+            ]);
 
-        $safeName = preg_replace('/[\\\\\/:*?"<>|\r\n]+/u', '_', trim($name));
-        $safeName = $safeName !== '' ? $safeName : '鑑定者';
+            $pdf = Pdf::loadView('pdf.appraisal', $data)
+                ->setPaper('a4', 'portrait');
 
-        return $pdf->download('運命鑑定書_' . $safeName . '.pdf');
+            return $pdf->download(PdfFileNameSanitizer::appraisal($name));
+        } catch (CalendarDataUnavailableException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (Throwable $e) {
+            Log::error('Appraisal PDF generation failed.', [
+                'route' => 'appraisal.pdf',
+                'exception_class' => $e::class,
+            ]);
+            report($e);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'PDFの生成に失敗しました。時間をおいて再度お試しください。',
+            ], 500);
+        }
     }
 }

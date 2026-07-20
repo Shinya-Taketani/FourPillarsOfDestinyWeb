@@ -3,14 +3,32 @@ import { ref, computed } from 'vue';
 import axios from 'axios';
 import { Radar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler } from 'chart.js';
+import { useValidationErrors } from '@/composables/useValidationErrors';
+import { useCalendarCoverage } from '@/composables/useCalendarCoverage';
+import { DEFAULT_BIRTH_DATETIME, DEFAULT_TARGET_DATETIME } from '@/config/calendar';
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
-// 1980年・京都(135.76)・09:00をデフォルトに設定
-const form = ref({ name: '鑑定者', birthday: '1980-01-01T09:00', longitude: 135.76, gender: 'male' });
+const form = ref({
+    name: '鑑定者',
+    birthday: DEFAULT_BIRTH_DATETIME,
+    longitude: 135.76,
+    gender: 'male',
+    target_datetime: DEFAULT_TARGET_DATETIME,
+});
 const result = ref(null);
 const loading = ref(false);
+const pdfLoading = ref(false);
 const activeMonth = ref(null);
+const { coverage, coverageError, birthDateTimeMin, birthDateTimeMax } = useCalendarCoverage();
+const {
+    generalError,
+    clearErrors,
+    getFieldError,
+    getAnyFieldError,
+    hasFieldError,
+    setErrorsFromAxiosError,
+} = useValidationErrors();
 
 const regions = [
     { label: '北海道・東北', cities: [{n:'北海道', l:141.35}, {n:'青森', l:140.74}, {n:'岩手', l:141.15}, {n:'宮城', l:140.87}, {n:'秋田', l:140.10}, {n:'山形', l:140.34}, {n:'福島', l:140.47}] },
@@ -25,13 +43,47 @@ const setCityLng = (lng) => { form.value.longitude = lng; };
 
 const submit = async () => {
     loading.value = true;
+    clearErrors();
     try {
         const response = await axios.post('/api/analyze', form.value);
         result.value = response.data.data;
-    } catch (error) { alert('鑑定エラーが発生しました。'); } finally { loading.value = false; }
+    } catch (error) {
+        await setErrorsFromAxiosError(error, '鑑定エラーが発生しました。');
+    } finally { loading.value = false; }
+};
+
+const downloadBlob = (blob, fileName) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+};
+
+const downloadPdf = async () => {
+    pdfLoading.value = true;
+    clearErrors();
+
+    try {
+        const response = await axios.post('/appraisal/pdf', form.value, { responseType: 'blob' });
+        downloadBlob(response.data, '運命鑑定書.pdf');
+    } catch (error) {
+        await setErrorsFromAxiosError(error, 'PDFの生成に失敗しました。');
+    } finally {
+        pdfLoading.value = false;
+    }
 };
 
 const toggleMonth = (idx) => { activeMonth.value = activeMonth.value === idx ? null : idx; };
+const targetYear = computed(() => (
+    result.value?.ryunen?.ryunen_year
+    ?? result.value?.saiun?.year
+    ?? result.value?.input?.target_year
+    ?? ''
+));
 
 const chartData = computed(() => {
     if (!result.value) return null;
@@ -53,16 +105,49 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
     <div class="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen text-gray-800">
         <div class="bg-white p-8 rounded-xl shadow-lg mb-8 border-b-8 border-indigo-600">
             <h1 class="text-3xl font-black mb-8 text-indigo-900 border-l-8 border-indigo-600 pl-4">運命鑑定</h1>
+
+            <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+                <span v-if="coverage">
+                    <template v-if="coverage.complete">
+                        正式採用済みの節入りデータ対応範囲: {{ coverage.birth_date.min_year }}年〜{{ coverage.birth_date.max_year }}年
+                    </template>
+                    <template v-else>
+                        節入りデータに欠損があります。未登録年: {{ coverage.missing_years.join(', ') }}
+                    </template>
+                </span>
+                <span v-else-if="coverageError">{{ coverageError }}</span>
+                <span v-else>節入りデータの対応範囲を確認中です。</span>
+            </p>
+
+            <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {{ generalError }}
+            </div>
             
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">氏名</span><input v-model="form.name" type="text" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none"></div>
-                        <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">生年月日</span><input v-model="form.birthday" type="datetime-local" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none"></div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-400 mb-1 ml-1">氏名</span>
+                            <input v-model="form.name" type="text" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none" :class="hasFieldError('name') ? 'border-red-500' : ''">
+                            <p v-if="getFieldError('name')" class="mt-1 text-sm font-bold text-red-600">{{ getFieldError('name') }}</p>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-400 mb-1 ml-1">生年月日</span>
+                            <input v-model="form.birthday" type="datetime-local" :min="birthDateTimeMin" :max="birthDateTimeMax" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none" :class="getAnyFieldError(['birthday', 'birth_time']) ? 'border-red-500' : ''">
+                            <p v-if="getAnyFieldError(['birthday', 'birth_time'])" class="mt-1 text-sm font-bold text-red-600">{{ getAnyFieldError(['birthday', 'birth_time']) }}</p>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">性別</span><select v-model="form.gender" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none"><option value="male">男性</option><option value="female">女性</option></select></div>
-                        <div class="flex flex-col"><span class="text-xs font-bold text-gray-400 mb-1 ml-1">出生地経度</span><input v-model="form.longitude" type="number" step="0.01" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none text-indigo-600"></div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-400 mb-1 ml-1">性別</span>
+                            <select v-model="form.gender" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none" :class="hasFieldError('gender') ? 'border-red-500' : ''"><option value="male">男性</option><option value="female">女性</option></select>
+                            <p v-if="getFieldError('gender')" class="mt-1 text-sm font-bold text-red-600">{{ getFieldError('gender') }}</p>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-gray-400 mb-1 ml-1">出生地経度</span>
+                            <input v-model="form.longitude" type="number" step="0.01" class="border-2 p-3 rounded-lg text-xl font-bold focus:border-indigo-500 outline-none text-indigo-600" :class="hasFieldError('longitude') ? 'border-red-500' : ''">
+                            <p v-if="getFieldError('longitude')" class="mt-1 text-sm font-bold text-red-600">{{ getFieldError('longitude') }}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -92,18 +177,12 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                 </button>
                 
                 <!-- 鑑定結果がある場合のみ表示されるPDF生成フォーム -->
-                <form v-if="result" :action="route('appraisal.pdf')" method="POST" target="_blank" class="flex-1">
-                    <input type="hidden" name="_token" :value="$page.props.csrf_token">
-                    <input type="hidden" name="name" :value="form.name">
-                    <input type="hidden" name="birthday" :value="form.birthday">
-                    <input type="hidden" name="longitude" :value="form.longitude">
-                    <input type="hidden" name="gender" :value="form.gender">
-                    
-                    <button type="submit" class="w-full h-full bg-rose-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl hover:bg-rose-700 transition active:scale-[0.98] flex items-center justify-center gap-2 border-b-4 border-rose-800">
+                <form v-if="result" @submit.prevent="downloadPdf" class="flex-1">
+                    <button type="submit" :disabled="pdfLoading" class="w-full h-full bg-rose-600 text-white py-5 rounded-xl text-2xl font-black shadow-xl hover:bg-rose-700 transition active:scale-[0.98] flex items-center justify-center gap-2 border-b-4 border-rose-800 disabled:bg-gray-400 disabled:border-gray-600">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        鑑定書をPDFで保存
+                        {{ pdfLoading ? 'PDF生成中...' : '鑑定書をPDFで保存' }}
                     </button>
                 </form>
             </div>
@@ -113,19 +192,19 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
             <div class="bg-gradient-to-r from-red-500 to-orange-500 p-1 rounded-2xl mb-8 shadow-xl">
                 <div class="bg-white p-8 rounded-xl flex flex-col lg:flex-row items-center gap-8 text-center lg:text-left">
                     <div class="shrink-0 lg:border-r-4 border-orange-100 pr-0 lg:pr-8">
-                        <div class="text-2xl font-black text-orange-500 uppercase">Yearly 2026</div>
+                        <div class="text-2xl font-black text-orange-500 uppercase">Yearly {{ targetYear }}</div>
                         <div class="text-7xl font-serif font-black text-red-600 my-2 leading-none">{{ result.saiun.kanji }}</div>
                         <div class="inline-block px-6 py-2 bg-red-600 text-white text-3xl rounded-xl font-black">{{ result.saiun.ten_god }}</div>
                     </div>
                     <div class="flex-1">
-                        <h2 class="text-2xl font-black text-gray-400 mb-2">2026年の運勢テーマ</h2>
+                        <h2 class="text-2xl font-black text-gray-400 mb-2">{{ targetYear }}年の運勢テーマ</h2>
                         <p class="text-4xl font-bold text-gray-700 leading-relaxed italic">“ {{ result.appraisal.saiun_comment }} ”</p>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white p-8 rounded-xl shadow-md mb-8 border-t-8 border-orange-500">
-                <h2 class="text-3xl font-black mb-8 border-l-8 border-orange-500 pl-4 text-orange-900">2026年 月運</h2>
+                <h2 class="text-3xl font-black mb-8 border-l-8 border-orange-500 pl-4 text-orange-900">{{ targetYear }}年 月運</h2>
                 <div class="space-y-6">
                     <div v-for="(m, idx) in result.getsuun" :key="idx" @click="toggleMonth(idx)" class="cursor-pointer group">
                         <div class="flex flex-col lg:flex-row bg-orange-50 rounded-2xl p-6 gap-6 border-2 border-orange-100 shadow-sm hover:bg-orange-100 transition">

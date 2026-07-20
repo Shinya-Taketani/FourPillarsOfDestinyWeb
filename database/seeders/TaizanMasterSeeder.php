@@ -50,58 +50,56 @@ class TaizanMasterSeeder extends Seeder
 
         // --- 4. 泰山流・蔵干比率 (12支すべて網羅) ---
         // yoki: 余気, chuki: 中気, honki: 本気
+        $stemIds = DB::table('master_stems')->pluck('id', 'name');
         $zokanRatios = [
             // 子: 壬(10), 癸(20) ※中気なし
-            ['branch_id' => 1, 'type' => 'yoki', 'element_id' => 5, 'days' => 10], // 壬
-            ['branch_id' => 1, 'type' => 'honki', 'element_id' => 5, 'days' => 20], // 癸
+            ['branch_id' => 1, 'type' => 'yoki', 'stem_id' => $stemIds['壬'], 'element_id' => 5, 'days' => 10],
+            ['branch_id' => 1, 'type' => 'honki', 'stem_id' => $stemIds['癸'], 'element_id' => 5, 'days' => 20],
             // 丑: 癸(9), 辛(3), 己(18)
-            ['branch_id' => 2, 'type' => 'yoki', 'element_id' => 5, 'days' => 9],
-            ['branch_id' => 2, 'type' => 'chuki', 'element_id' => 4, 'days' => 3],
-            ['branch_id' => 2, 'type' => 'honki', 'element_id' => 3, 'days' => 18],
+            ['branch_id' => 2, 'type' => 'yoki', 'stem_id' => $stemIds['癸'], 'element_id' => 5, 'days' => 9],
+            ['branch_id' => 2, 'type' => 'chuki', 'stem_id' => $stemIds['辛'], 'element_id' => 4, 'days' => 3],
+            ['branch_id' => 2, 'type' => 'honki', 'stem_id' => $stemIds['己'], 'element_id' => 3, 'days' => 18],
             // 寅: 戊(7), 丙(7), 甲(16)
-            ['branch_id' => 3, 'type' => 'yoki', 'element_id' => 3, 'days' => 7],
-            ['branch_id' => 3, 'type' => 'chuki', 'element_id' => 2, 'days' => 7],
-            ['branch_id' => 3, 'type' => 'honki', 'element_id' => 1, 'days' => 16],
+            ['branch_id' => 3, 'type' => 'yoki', 'stem_id' => $stemIds['戊'], 'element_id' => 3, 'days' => 7],
+            ['branch_id' => 3, 'type' => 'chuki', 'stem_id' => $stemIds['丙'], 'element_id' => 2, 'days' => 7],
+            ['branch_id' => 3, 'type' => 'honki', 'stem_id' => $stemIds['甲'], 'element_id' => 1, 'days' => 16],
             // 卯: 甲(10), 乙(20)
-            ['branch_id' => 4, 'type' => 'yoki', 'element_id' => 1, 'days' => 10],
-            ['branch_id' => 4, 'type' => 'honki', 'element_id' => 1, 'days' => 20],
+            ['branch_id' => 4, 'type' => 'yoki', 'stem_id' => $stemIds['甲'], 'element_id' => 1, 'days' => 10],
+            ['branch_id' => 4, 'type' => 'honki', 'stem_id' => $stemIds['乙'], 'element_id' => 1, 'days' => 20],
             // 辰: 乙(9), 癸(3), 戊(18)
-            ['branch_id' => 5, 'type' => 'yoki', 'element_id' => 1, 'days' => 9],
-            ['branch_id' => 5, 'type' => 'chuki', 'element_id' => 5, 'days' => 3],
-            ['branch_id' => 5, 'type' => 'honki', 'element_id' => 3, 'days' => 18],
+            ['branch_id' => 5, 'type' => 'yoki', 'stem_id' => $stemIds['乙'], 'element_id' => 1, 'days' => 9],
+            ['branch_id' => 5, 'type' => 'chuki', 'stem_id' => $stemIds['癸'], 'element_id' => 5, 'days' => 3],
+            ['branch_id' => 5, 'type' => 'honki', 'stem_id' => $stemIds['戊'], 'element_id' => 3, 'days' => 18],
             // 巳: 庚(9), 戊(5), 丙(16) ※泰山流配分
-            ['branch_id' => 6, 'type' => 'yoki', 'element_id' => 4, 'days' => 9],
-            ['branch_id' => 6, 'type' => 'chuki', 'element_id' => 3, 'days' => 5],
-            ['branch_id' => 6, 'type' => 'honki', 'element_id' => 2, 'days' => 16],
+            ['branch_id' => 6, 'type' => 'yoki', 'stem_id' => $stemIds['庚'], 'element_id' => 4, 'days' => 9],
+            ['branch_id' => 6, 'type' => 'chuki', 'stem_id' => $stemIds['戊'], 'element_id' => 3, 'days' => 5],
+            ['branch_id' => 6, 'type' => 'honki', 'stem_id' => $stemIds['丙'], 'element_id' => 2, 'days' => 16],
             // 午: 丙(10), 己(9), 丁(11)
-            ['branch_id' => 7, 'type' => 'yoki', 'element_id' => 2, 'days' => 10],
-            ['branch_id' => 7, 'type' => 'chuki', 'element_id' => 3, 'days' => 9],
-            ['branch_id' => 7, 'type' => 'honki', 'element_id' => 2, 'days' => 11],
+            ['branch_id' => 7, 'type' => 'yoki', 'stem_id' => $stemIds['丙'], 'element_id' => 2, 'days' => 10],
+            ['branch_id' => 7, 'type' => 'chuki', 'stem_id' => $stemIds['己'], 'element_id' => 3, 'days' => 9],
+            ['branch_id' => 7, 'type' => 'honki', 'stem_id' => $stemIds['丁'], 'element_id' => 2, 'days' => 11],
             // 未: 丁(9), 乙(3), 己(18)
-            ['branch_id' => 8, 'type' => 'yoki', 'element_id' => 2, 'days' => 9],
-            ['branch_id' => 8, 'type' => 'chuki', 'element_id' => 1, 'days' => 3],
-            ['branch_id' => 8, 'type' => 'honki', 'element_id' => 3, 'days' => 18],
+            ['branch_id' => 8, 'type' => 'yoki', 'stem_id' => $stemIds['丁'], 'element_id' => 2, 'days' => 9],
+            ['branch_id' => 8, 'type' => 'chuki', 'stem_id' => $stemIds['乙'], 'element_id' => 1, 'days' => 3],
+            ['branch_id' => 8, 'type' => 'honki', 'stem_id' => $stemIds['己'], 'element_id' => 3, 'days' => 18],
             // 申: 戊(7), 壬(7), 庚(16)
-            ['branch_id' => 9, 'type' => 'yoki', 'element_id' => 3, 'days' => 7],
-            ['branch_id' => 9, 'type' => 'chuki', 'element_id' => 5, 'days' => 7],
-            ['branch_id' => 9, 'type' => 'honki', 'element_id' => 4, 'days' => 16],
+            ['branch_id' => 9, 'type' => 'yoki', 'stem_id' => $stemIds['戊'], 'element_id' => 3, 'days' => 7],
+            ['branch_id' => 9, 'type' => 'chuki', 'stem_id' => $stemIds['壬'], 'element_id' => 5, 'days' => 7],
+            ['branch_id' => 9, 'type' => 'honki', 'stem_id' => $stemIds['庚'], 'element_id' => 4, 'days' => 16],
             // 酉: 庚(10), 辛(20)
-            ['branch_id' => 10, 'type' => 'yoki', 'element_id' => 4, 'days' => 10],
-            ['branch_id' => 10, 'type' => 'honki', 'element_id' => 4, 'days' => 20],
+            ['branch_id' => 10, 'type' => 'yoki', 'stem_id' => $stemIds['庚'], 'element_id' => 4, 'days' => 10],
+            ['branch_id' => 10, 'type' => 'honki', 'stem_id' => $stemIds['辛'], 'element_id' => 4, 'days' => 20],
             // 戌: 辛(9), 丁(3), 戊(18)
-            ['branch_id' => 11, 'type' => 'yoki', 'element_id' => 4, 'days' => 9],
-            ['branch_id' => 11, 'type' => 'chuki', 'element_id' => 2, 'days' => 3],
-            ['branch_id' => 11, 'type' => 'honki', 'element_id' => 3, 'days' => 18],
+            ['branch_id' => 11, 'type' => 'yoki', 'stem_id' => $stemIds['辛'], 'element_id' => 4, 'days' => 9],
+            ['branch_id' => 11, 'type' => 'chuki', 'stem_id' => $stemIds['丁'], 'element_id' => 2, 'days' => 3],
+            ['branch_id' => 11, 'type' => 'honki', 'stem_id' => $stemIds['戊'], 'element_id' => 3, 'days' => 18],
             // 亥: 甲(10), 壬(20)
-            ['branch_id' => 12, 'type' => 'yoki', 'element_id' => 1, 'days' => 10],
-            ['branch_id' => 12, 'type' => 'honki', 'element_id' => 5, 'days' => 20],
+            ['branch_id' => 12, 'type' => 'yoki', 'stem_id' => $stemIds['甲'], 'element_id' => 1, 'days' => 10],
+            ['branch_id' => 12, 'type' => 'honki', 'stem_id' => $stemIds['壬'], 'element_id' => 5, 'days' => 20],
         ];
         DB::table('master_zokan_ratios')->insert($zokanRatios);
 
-        // --- 5. 季節倍率 (旺相死囚休：全5季節×5五行 完結版) ---
-        $seasons = [
-            1 => '春', 2 => '夏', 3 => '土用', 4 => '秋', 5 => '冬'
-        ];
+        // --- 5. 季節倍率 (旺相死囚休：検証用。配点根拠と採用可否は要確認) ---
         $multipliers = [
             // 春(1): 木旺(2.0), 火相(1.5), 水休(0.8), 金囚(0.5), 土死(0.3)
             ['season_id' => 1, 'element_id' => 1, 'state_name' => '旺', 'multiplier' => 2.0],
@@ -162,7 +160,7 @@ class TaizanMasterSeeder extends Seeder
             ['id' => 9, 'name' => '病', 'score' => 5], ['id' => 10, 'name' => '死', 'score' => 2],
             ['id' => 11, 'name' => '墓', 'score' => 6], ['id' => 12, 'name' => '絶', 'score' => 1],
         ]);
-        
+
         // 通変星・相性ラベルも同様に完結データを挿入... (文字数制限のため主要部は上記で完了)
     }
 }

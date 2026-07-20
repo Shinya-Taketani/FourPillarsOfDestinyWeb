@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\AnalysisController;
+use App\Http\Controllers\Api\CalendarCoverageController;
+use App\Http\Controllers\CompatibilityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AnalysisController;
-use App\Http\Controllers\CompatibilityController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -11,3 +12,4 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/analyze', [AnalysisController::class, 'store']);
 Route::post('/analyze-compatibility', [CompatibilityController::class, 'analyze']);
+Route::get('/calendar-coverage', CalendarCoverageController::class);

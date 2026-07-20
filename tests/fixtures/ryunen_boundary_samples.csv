@@ -1,0 +1,4 @@
+sample_id,target_datetime,timezone,expected_ryunen_year,expected_note
+RY2026_BEFORE,2026-02-04 05:01:00,Asia/Tokyo,2025,立春前は前年流年
+RY2026_AT,2026-02-04 05:02:00,Asia/Tokyo,2026,立春以後は当年流年
+RY2026_AFTER,2026-02-04 05:03:00,Asia/Tokyo,2026,立春以後は当年流年

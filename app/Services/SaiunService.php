@@ -4,32 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
+use Carbon\CarbonImmutable;
 
 readonly class SaiunService
 {
-    public function __construct(private StarCalculationService $starService) {}
+    public function __construct(private RyunenService $ryunenService) {}
 
     /**
-     * 指定された年の歳運データを取得する
+     * 指定された年の流年干支に、日干基準の通変星・十二運を付与する。
+     * 吉凶評価としての歳運判断は次回以降に分離する。
      */
     public function calculate(int $year, int $dayStemId): array
     {
-        // 干支の計算 (2026 -> 丙午)
-        $index = ($year - 3) % 60;
-        if ($index <= 0) $index += 60;
+        return $this->ryunenService->getRyunenPillarByYear($year, $dayStemId);
+    }
 
-        $stemId = $index % 10 ?: 10;
-        $branchId = $index % 12 ?: 12;
-
-        $stem = DB::table('master_stems')->where('id', $stemId)->first();
-        $branch = DB::table('master_branches')->where('id', $branchId)->first();
-
-        return [
-            'year' => $year,
-            'kanji' => ($stem->name ?? '') . ($branch->name ?? ''),
-            'ten_god' => $this->starService->getTenGod($dayStemId, $stemId),
-            'twelve_life_stage' => $this->starService->getTwelveLifeStage($dayStemId, $branchId),
-        ];
+    public function calculateByDateTime(CarbonImmutable $dateTime, int $dayStemId): array
+    {
+        return $this->ryunenService->getRyunenPillarByDateTime($dateTime, $dayStemId);
     }
 }
