@@ -26,7 +26,6 @@ class DatabaseSeeder extends Seeder
             TaizanMasterSeeder::class,
             SolarTermDefinitionSeeder::class,
             SolarTermEventSeeder::class,
-            SolarTermSeeder2::class,
             TaizanJudgmentSeeder::class,
         ]);
     }

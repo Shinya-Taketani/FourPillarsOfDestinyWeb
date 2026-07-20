@@ -97,10 +97,10 @@ readonly class SexagenaryService
     {
         $baseDate = CarbonImmutable::create(1900, 1, 31, 0, 0, 0, $date->timezone);
         $calculationDate = $this->getDayPillarCalculationDate($date);
-        $diffDays = $baseDate->diffInDays($calculationDate);
-        $index = ($diffDays % 60) + 1;
+        $diffDays = (int) $baseDate->diffInDays($calculationDate);
+        $index = (($diffDays % 60) + 60) % 60 + 1;
 
-        return $this->splitIndex((int) $index);
+        return $this->splitIndex($index);
     }
 
     public function getDayPillarCalculationDate(CarbonImmutable $date): CarbonImmutable

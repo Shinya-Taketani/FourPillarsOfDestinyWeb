@@ -8,6 +8,7 @@ use App\Services\DestinyCalculationService;
 use App\Support\PdfFileNameSanitizer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class AppraisalController extends Controller
@@ -16,7 +17,7 @@ class AppraisalController extends Controller
         protected DestinyCalculationService $calculationService
     ) {}
 
-    public function downloadPdf(AppraisalPdfRequest $request)
+    public function downloadPdf(AppraisalPdfRequest $request): Response
     {
         $validated = $request->validatedForAnalysis();
         $name = $validated['name'] !== '' ? $validated['name'] : '鑑定者';

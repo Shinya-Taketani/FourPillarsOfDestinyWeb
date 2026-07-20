@@ -59,7 +59,7 @@ readonly class RyunenService
 
     public function calculateAgeAtTargetDate(CarbonImmutable $birthDateTime, CarbonImmutable $targetDateTime): float
     {
-        return round($birthDateTime->floatDiffInYears($targetDateTime), 4);
+        return round($birthDateTime->diffInYears($targetDateTime), 4);
     }
 
     public function findActiveDayunByAge(array $dayunCycles, float $age): ?array

@@ -6,6 +6,7 @@ use Database\Seeders\SolarTermDefinitionSeeder;
 use Database\Seeders\SolarTermEventSeeder;
 use Database\Seeders\TaizanMasterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AnalysisValidationTest extends TestCase
@@ -118,6 +119,10 @@ class AnalysisValidationTest extends TestCase
     public function test_single_analysis_api_does_not_fabricate_result_when_calendar_data_is_missing(): void
     {
         $this->seedCalendarEvents();
+        DB::table('solar_term_events')
+            ->where('year', 2025)
+            ->where('solar_term_definition_id', DB::table('solar_term_definitions')->where('name', '雨水')->value('id'))
+            ->delete();
 
         $payload = $this->validPayload();
         $payload['birthday'] = '2025-03-05';
@@ -128,16 +133,38 @@ class AnalysisValidationTest extends TestCase
             ->assertJsonMissingPath('data.schema_version');
     }
 
-    public function test_1980_input_returns_safe_calendar_data_error(): void
+    public function test_1980_input_uses_adopted_calendar_data(): void
     {
         $this->seedCalendarEvents();
         $payload = $this->validPayload();
         $payload['birthday'] = '1980-01-01';
 
         $this->postJson('/api/analyze', $payload)
-            ->assertUnprocessable()
-            ->assertJsonPath('status', 'error')
-            ->assertJsonMissingPath('data');
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S')
+            ->assertJsonPath('data.calculation_metadata.solar_term_adopted', true);
+    }
+
+    public function test_birth_and_target_dates_are_limited_to_public_coverage(): void
+    {
+        foreach (['1899-12-31', '2101-01-01'] as $birthday) {
+            $payload = $this->validPayload();
+            $payload['birthday'] = $birthday;
+
+            $this->postJson('/api/analyze', $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('birthday');
+        }
+
+        foreach (['1899-12-31T23:59', '2101-01-01T00:00'] as $targetDateTime) {
+            $payload = $this->validPayload();
+            $payload['target_datetime'] = $targetDateTime;
+
+            $this->postJson('/api/analyze', $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('target_datetime');
+        }
     }
 
     private function validPayload(): array

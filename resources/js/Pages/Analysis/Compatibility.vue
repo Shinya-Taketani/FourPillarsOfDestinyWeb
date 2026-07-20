@@ -4,7 +4,8 @@ import axios from 'axios';
 import { Radar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler } from 'chart.js';
 import { useValidationErrors } from '@/composables/useValidationErrors';
-import { DEFAULT_BIRTH_DATETIME, DEFAULT_TARGET_DATETIME, SUPPORTED_CALENDAR_YEAR } from '@/config/calendar';
+import { useCalendarCoverage } from '@/composables/useCalendarCoverage';
+import { DEFAULT_BIRTH_DATETIME, DEFAULT_TARGET_DATETIME } from '@/config/calendar';
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, RadialLinearScale, Filler);
 
@@ -13,6 +14,7 @@ const person2 = ref({ name: '相手', birthday: DEFAULT_BIRTH_DATETIME, longitud
 const result = ref(null);
 const loading = ref(false);
 const pdfLoading = ref(false);
+const { coverage, coverageError, birthDateTimeMin, birthDateTimeMax } = useCalendarCoverage();
 const {
     generalError,
     clearErrors,
@@ -95,7 +97,12 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
         <h1 class="text-4xl font-black text-indigo-900 mb-8 border-l-8 border-indigo-600 pl-4 uppercase">相性精密鑑定</h1>
 
         <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
-            現在、正式採用済みの節入りデータは{{ SUPPORTED_CALENDAR_YEAR }}年分です。対象外の日時は計算できません。
+            <span v-if="coverage">
+                正式採用済みの節入りデータ対応範囲: {{ coverage.birth_date.min_year }}年〜{{ coverage.birth_date.max_year }}年
+                <template v-if="!coverage.complete">（欠損年あり）</template>
+            </span>
+            <span v-else-if="coverageError">{{ coverageError }}</span>
+            <span v-else>節入りデータの対応範囲を確認中です。</span>
         </p>
 
         <div v-if="generalError" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
@@ -117,7 +124,7 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
                     </div>
                     <div class="flex flex-col">
                         <span class="text-xs font-bold text-gray-400 mb-1 ml-1">生年月日</span>
-                        <input v-model="p.birthday" type="datetime-local" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none" :class="getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`]) ? 'border-red-500' : ''">
+                        <input v-model="p.birthday" type="datetime-local" :min="birthDateTimeMin" :max="birthDateTimeMax" class="border-2 p-3 rounded-xl text-xl font-bold focus:border-indigo-500 outline-none" :class="getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`]) ? 'border-red-500' : ''">
                         <p v-if="getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`])" class="mt-1 text-sm font-bold text-red-600">{{ getAnyFieldError([`person${i+1}.birthday`, `person${i+1}.birth_time`]) }}</p>
                     </div>
                     <div class="grid grid-cols-2 gap-4">

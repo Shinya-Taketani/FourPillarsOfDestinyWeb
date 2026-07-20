@@ -15,10 +15,14 @@ class SolarTermEventTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_solar_term_definitions_seed_twelve_month_boundaries(): void
+    public function test_solar_term_definitions_seed_twenty_four_terms_and_twelve_month_boundaries(): void
     {
         $this->seed(TaizanMasterSeeder::class);
         $this->seed(SolarTermDefinitionSeeder::class);
+
+        $this->assertSame(24, DB::table('solar_term_definitions')->count());
+        $this->assertSame(12, DB::table('solar_term_definitions')->where('term_type', 'major_term')->count());
+        $this->assertSame(12, DB::table('solar_term_definitions')->where('term_type', 'middle_term')->count());
 
         $names = DB::table('solar_term_definitions')
             ->where('is_month_boundary', true)
@@ -32,12 +36,12 @@ class SolarTermEventTest extends TestCase
         );
     }
 
-    public function test_solar_term_events_seed_2026_adopted_month_boundaries(): void
+    public function test_solar_term_events_seed_2026_adopted_solar_terms(): void
     {
         $this->seedCalendarEvents();
 
         $this->assertSame(
-            12,
+            24,
             DB::table('solar_term_events')
                 ->where('year', 2026)
                 ->where('adopted', true)
@@ -105,9 +109,9 @@ class SolarTermEventTest extends TestCase
 
         $service = app(SolarTermService::class);
 
-        $this->assertNull($service->getAdoptedSolarTermEvent('立春', 2027));
-        $this->assertNull($service->getLichunDateTime(2027));
-        $this->assertCount(0, $service->getMonthBoundaryEvents(2027));
+        $this->assertNull($service->getAdoptedSolarTermEvent('立春', 2102));
+        $this->assertNull($service->getLichunDateTime(2102));
+        $this->assertCount(0, $service->getMonthBoundaryEvents(2102));
     }
 
     private function seedCalendarEvents(): void

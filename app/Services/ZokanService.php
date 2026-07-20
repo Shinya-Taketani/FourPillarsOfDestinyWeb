@@ -50,7 +50,7 @@ readonly class ZokanService
 
     private function requireStemId(object $ratio, int $branchId): int
     {
-        if (! isset($ratio->stem_id) || $ratio->stem_id === null) {
+        if (! isset($ratio->stem_id)) {
             throw new RuntimeException("Zokan stem_id is not set for branch_id {$branchId}.");
         }
 

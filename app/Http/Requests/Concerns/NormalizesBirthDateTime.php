@@ -8,6 +8,8 @@ trait NormalizesBirthDateTime
 {
     /**
      * 既存 UI の datetime-local 値を birthday / birth_time に分ける。
+     *
+     * @return array{0:?string,1:?string}
      */
     protected function splitBirthDateTime(?string $birthday, ?string $birthTime): array
     {
@@ -28,11 +30,13 @@ trait NormalizesBirthDateTime
         return [$birthday, $birthTime];
     }
 
+    /** @param array{birthday:string,birth_time:string} $data */
     protected function combineBirthDateTime(array $data): string
     {
         return $data['birthday'].'T'.$data['birth_time'];
     }
 
+    /** @param array{target_datetime?:mixed,target_year?:mixed} $data */
     protected function resolveTargetDateTime(array $data): ?string
     {
         if (! empty($data['target_datetime'])) {

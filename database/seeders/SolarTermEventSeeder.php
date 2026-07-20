@@ -1,55 +1,64 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
+use App\Services\SolarTermCsvReader;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class SolarTermEventSeeder extends Seeder
 {
-    public function run(): void
+    private const FROM_YEAR = 1899;
+
+    private const TO_YEAR = 2101;
+
+    private const CSV_PATH = 'data/solar_terms/naoj_1899_2101.csv';
+
+    public function run(SolarTermCsvReader $reader): void
     {
+        $csvPath = database_path(self::CSV_PATH);
+        $rows = $reader->read($csvPath, self::FROM_YEAR, self::TO_YEAR, $csvPath.'.sha256');
         $definitionIds = DB::table('solar_term_definitions')->pluck('id', 'name');
         $now = now();
+        $inserts = [];
 
-        $sourceTitle = '国立天文台 令和8年(2026)暦要項 二十四節気および雑節';
-        $sourceUrl = 'https://eco.mtk.nao.ac.jp/koyomi/yoko/2026/rekiyou262.html';
-        $note = '四柱推命の年柱・月柱境界検証用に採用する公的節入り時刻。天保壬寅元暦そのものの実装ではない。';
+        foreach ($rows as $row) {
+            $definitionId = $definitionIds[$row['term_name']] ?? null;
 
-        $events = [
-            ['name' => '小寒', 'started_at' => '2026-01-05 17:23:00'],
-            ['name' => '立春', 'started_at' => '2026-02-04 05:02:00'],
-            ['name' => '啓蟄', 'started_at' => '2026-03-05 22:59:00'],
-            ['name' => '清明', 'started_at' => '2026-04-05 03:40:00'],
-            ['name' => '立夏', 'started_at' => '2026-05-05 20:49:00'],
-            ['name' => '芒種', 'started_at' => '2026-06-06 00:48:00'],
-            ['name' => '小暑', 'started_at' => '2026-07-07 10:57:00'],
-            ['name' => '立秋', 'started_at' => '2026-08-07 20:43:00'],
-            ['name' => '白露', 'started_at' => '2026-09-07 23:41:00'],
-            ['name' => '寒露', 'started_at' => '2026-10-08 15:29:00'],
-            ['name' => '立冬', 'started_at' => '2026-11-07 18:52:00'],
-            ['name' => '大雪', 'started_at' => '2026-12-07 11:53:00'],
-        ];
+            if ($definitionId === null) {
+                throw new RuntimeException("節気定義が不足しています: {$row['term_name']}");
+            }
 
-        foreach ($events as $event) {
-            DB::table('solar_term_events')->updateOrInsert(
-                [
-                    'year' => 2026,
-                    'solar_term_definition_id' => $definitionIds[$event['name']],
-                    'source_rank' => 'S',
-                ],
-                [
-                    'started_at' => $event['started_at'],
-                    'timezone' => 'Asia/Tokyo',
-                    'calendar_system' => 'modern_astronomical',
-                    'source_title' => $sourceTitle,
-                    'source_url' => $sourceUrl,
-                    'adopted' => true,
-                    'note' => $note,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ],
-            );
+            $inserts[] = [
+                'year' => $row['year'],
+                'solar_term_definition_id' => $definitionId,
+                'started_at' => $row['started_at'],
+                'timezone' => $row['timezone'],
+                'calendar_system' => $row['calendar_system'],
+                'source_title' => $row['source_title'],
+                'source_url' => $row['source_url'],
+                'source_rank' => $row['source_rank'],
+                'adopted' => $row['adopted'],
+                'note' => $row['note'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
+
+        DB::transaction(function () use ($inserts): void {
+            foreach (array_chunk($inserts, 500) as $chunk) {
+                DB::table('solar_term_events')->upsert(
+                    $chunk,
+                    ['year', 'solar_term_definition_id', 'source_rank'],
+                    [
+                        'started_at', 'timezone', 'calendar_system', 'source_title', 'source_url',
+                        'adopted', 'note', 'updated_at',
+                    ],
+                );
+            }
+        });
     }
 }

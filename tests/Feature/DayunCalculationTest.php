@@ -10,6 +10,7 @@ use Database\Seeders\SolarTermDefinitionSeeder;
 use Database\Seeders\SolarTermEventSeeder;
 use Database\Seeders\TaizanMasterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class DayunCalculationTest extends TestCase
@@ -109,6 +110,7 @@ class DayunCalculationTest extends TestCase
     public function test_dayun_does_not_fallback_when_adopted_boundary_event_is_missing(): void
     {
         $this->seedCalendarEvents();
+        DB::table('solar_term_events')->where('year', 2027)->delete();
 
         $this->expectException(CalendarDataUnavailableException::class);
 

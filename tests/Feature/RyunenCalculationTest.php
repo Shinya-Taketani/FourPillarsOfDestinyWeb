@@ -11,6 +11,7 @@ use Database\Seeders\SolarTermDefinitionSeeder;
 use Database\Seeders\SolarTermEventSeeder;
 use Database\Seeders\TaizanMasterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RyunenCalculationTest extends TestCase
@@ -85,6 +86,7 @@ class RyunenCalculationTest extends TestCase
     public function test_missing_lichun_data_is_not_approximated(): void
     {
         $this->seedCalendarEvents();
+        DB::table('solar_term_events')->where('year', 2027)->delete();
 
         $this->expectException(CalendarDataUnavailableException::class);
 
@@ -104,6 +106,8 @@ class RyunenCalculationTest extends TestCase
 
         $this->assertSame(2026, $result['ryunen']['ryunen_year']);
         $this->assertSame(2026, $result['saiun']['year']);
+
+        DB::table('solar_term_events')->where('year', 2027)->delete();
 
         $this->expectException(CalendarDataUnavailableException::class);
 

@@ -64,6 +64,18 @@ class CompatibilityValidationTest extends TestCase
         }
     }
 
+    public function test_compatibility_birth_dates_are_limited_to_public_coverage(): void
+    {
+        foreach ([['person1.birthday', '1899-12-31'], ['person2.birthday', '2101-01-01']] as [$key, $birthday]) {
+            $payload = $this->validPayload();
+            data_set($payload, $key, $birthday);
+
+            $this->postJson('/api/analyze-compatibility', $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors($key);
+        }
+    }
+
     private function validPayload(): array
     {
         return [

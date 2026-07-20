@@ -14,7 +14,6 @@ readonly class DestinyCalculationService
 
     public function __construct(
         private LmtCalculatorService $lmtService,
-        private SolarTermService $solarService,
         private FiveElementStrengthService $fiveElementStrengthService,
         private StarCalculationService $starService,
         private SexagenaryService $sexagenaryService,

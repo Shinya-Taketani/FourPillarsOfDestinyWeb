@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\NormalizesBirthDateTime;
+use App\Services\CalendarCoverageService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CompatibilityAnalyzeRequest extends FormRequest
@@ -39,26 +40,56 @@ class CompatibilityAnalyzeRequest extends FormRequest
         ]);
     }
 
+    /** @return array<string,array<int,string>> */
     public function rules(): array
     {
         return [
             'person1' => ['required', 'array'],
             'person1.name' => ['required', 'string', 'max:100'],
-            'person1.birthday' => ['required', 'date_format:Y-m-d'],
+            'person1.birthday' => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:'.CalendarCoverageService::BIRTH_MIN_YEAR.'-01-01',
+                'before_or_equal:'.CalendarCoverageService::BIRTH_MAX_YEAR.'-12-31',
+            ],
             'person1.birth_time' => ['required', 'date_format:H:i'],
             'person1.gender' => ['required', 'in:male,female'],
             'person1.longitude' => ['required', 'numeric', 'between:120,150'],
             'person2' => ['required', 'array'],
             'person2.name' => ['required', 'string', 'max:100'],
-            'person2.birthday' => ['required', 'date_format:Y-m-d'],
+            'person2.birthday' => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:'.CalendarCoverageService::BIRTH_MIN_YEAR.'-01-01',
+                'before_or_equal:'.CalendarCoverageService::BIRTH_MAX_YEAR.'-12-31',
+            ],
             'person2.birth_time' => ['required', 'date_format:H:i'],
             'person2.gender' => ['required', 'in:male,female'],
             'person2.longitude' => ['required', 'numeric', 'between:120,150'],
             'target_year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
-            'target_datetime' => ['nullable', 'date'],
+            'target_datetime' => [
+                'nullable',
+                'date',
+                'after_or_equal:'.CalendarCoverageService::BIRTH_MIN_YEAR.'-01-01 00:00:00',
+                'before_or_equal:'.CalendarCoverageService::BIRTH_MAX_YEAR.'-12-31 23:59:59',
+            ],
         ];
     }
 
+    /** @return array<string,string> */
+    public function messages(): array
+    {
+        return [
+            'person1.birthday.after_or_equal' => '1人目の生年月日は1900年から2100年の範囲で入力してください。',
+            'person1.birthday.before_or_equal' => '1人目の生年月日は1900年から2100年の範囲で入力してください。',
+            'person2.birthday.after_or_equal' => '2人目の生年月日は1900年から2100年の範囲で入力してください。',
+            'person2.birthday.before_or_equal' => '2人目の生年月日は1900年から2100年の範囲で入力してください。',
+            'target_datetime.after_or_equal' => '対象日時は1900年から2100年の範囲で入力してください。',
+            'target_datetime.before_or_equal' => '対象日時は1900年から2100年の範囲で入力してください。',
+        ];
+    }
+
+    /** @return array<string,string> */
     public function attributes(): array
     {
         return [
@@ -79,6 +110,14 @@ class CompatibilityAnalyzeRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array{
+     *     person1:array{name:string,birthday:string,birth_time:string,gender:string,longitude:float,birth_datetime:string},
+     *     person2:array{name:string,birthday:string,birth_time:string,gender:string,longitude:float,birth_datetime:string},
+     *     target_year?:int|null,
+     *     target_datetime:?string
+     * }
+     */
     public function validatedForCompatibility(): array
     {
         $validated = $this->validated();

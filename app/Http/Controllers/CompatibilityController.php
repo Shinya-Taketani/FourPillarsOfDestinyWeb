@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
 class CompatibilityController extends Controller
@@ -73,7 +74,7 @@ class CompatibilityController extends Controller
     /**
      * 相性鑑定PDFをダウンロード
      */
-    public function downloadPdf(CompatibilityPdfRequest $request, DestinyCalculationService $calc, AppraisalService $appraisal)
+    public function downloadPdf(CompatibilityPdfRequest $request, DestinyCalculationService $calc, AppraisalService $appraisal): HttpResponse
     {
         $validated = $request->validatedForCompatibility();
 

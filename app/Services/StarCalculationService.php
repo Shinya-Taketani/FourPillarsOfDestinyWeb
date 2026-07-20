@@ -67,6 +67,6 @@ readonly class StarCalculationService
 
         $stageId = $matrix[$dayStemId][$targetBranchId - 1] ?? 1;
 
-        return $this->masterData->twelveLifeStagesById()->get($stageId)?->name ?? '不明';
+        return $this->masterData->getTwelveLifeStageById($stageId)->name ?? '不明';
     }
 }

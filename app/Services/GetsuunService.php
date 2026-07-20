@@ -17,9 +17,6 @@ readonly class GetsuunService
 
     public function calculate(int $year, int $dayStemId): array
     {
-        $stems = $this->masterData->stemsById();
-        $branches = $this->masterData->branchesById();
-
         $monthBranches = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
         $monthNames = ['2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月', '1月'];
         $yearStemId = $this->sexagenaryService->getPillarByYearNumber($year)['stem_id'];
@@ -37,7 +34,8 @@ readonly class GetsuunService
                 $dp = $this->sexagenaryService->getDayPillar($cur);
                 $days[] = [
                     'day' => $cur->day,
-                    'kanji' => ($stems->get($dp['stem_id'])?->name ?? '').($branches->get($dp['branch_id'])?->name ?? ''),
+                    'kanji' => ($this->masterData->getStemById($dp['stem_id'])->name ?? '')
+                        .($this->masterData->getBranchById($dp['branch_id'])->name ?? ''),
                     'ten_god' => $this->starService->getTenGod($dayStemId, $dp['stem_id']),
                 ];
             }
@@ -46,7 +44,8 @@ readonly class GetsuunService
                 'month_name' => $name,
                 'stem_id' => $monthPillar['stem_id'],
                 'branch_id' => $monthPillar['branch_id'],
-                'kanji' => ($stems->get($monthPillar['stem_id'])?->name ?? '').($branches->get($monthPillar['branch_id'])?->name ?? ''),
+                'kanji' => ($this->masterData->getStemById($monthPillar['stem_id'])->name ?? '')
+                    .($this->masterData->getBranchById($monthPillar['branch_id'])->name ?? ''),
                 'ten_god' => $this->starService->getTenGod($dayStemId, $monthPillar['stem_id']),
                 'days' => $days,
             ];

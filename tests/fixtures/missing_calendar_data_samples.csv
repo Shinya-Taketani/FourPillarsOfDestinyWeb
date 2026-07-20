@@ -1,4 +1,4 @@
 sample_id,target_datetime,timezone,operation,expected_behavior,expected_note
 MC1883_LICHUN,1883-02-04 12:00:00,Asia/Tokyo,get_lichun,calendar_data_unavailable,1883年の採用済み節入りデータは未登録
-MC1923_LICHUN,1923-02-04 12:00:00,Asia/Tokyo,get_lichun,calendar_data_unavailable,1923年の採用済み節入りデータは未登録
-MC2027_LICHUN,2027-02-04 12:00:00,Asia/Tokyo,get_lichun,calendar_data_unavailable,2027年の採用済み節入りデータは未登録なら補完しない
+MC1884_LICHUN,1884-02-04 12:00:00,Asia/Tokyo,get_lichun,calendar_data_unavailable,1884年の採用済み節入りデータは未登録
+MC2102_LICHUN,2102-02-04 12:00:00,Asia/Tokyo,get_lichun,calendar_data_unavailable,2102年の採用済み節入りデータは未登録なら補完しない

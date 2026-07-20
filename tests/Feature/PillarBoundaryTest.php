@@ -70,7 +70,7 @@ class PillarBoundaryTest extends TestCase
         $this->expectException(CalendarDataUnavailableException::class);
         $this->expectExceptionMessage('指定年の採用済み立春データが未登録です');
 
-        app(SexagenaryService::class)->getYearPillar(CarbonImmutable::parse('2027-02-04 05:02:00'));
+        app(SexagenaryService::class)->getYearPillar(CarbonImmutable::parse('2102-02-04 05:02:00'));
     }
 
     private function seedCalendarEvents(): void

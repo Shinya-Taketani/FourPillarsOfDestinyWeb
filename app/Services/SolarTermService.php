@@ -10,8 +10,14 @@ use Illuminate\Support\Facades\DB;
 
 readonly class SolarTermService
 {
+    private const TERMS_PER_COMPLETE_YEAR = 24;
+
     public function getAdoptedSolarTermEvent(string $termName, int $year): ?object
     {
+        if (! $this->hasCompleteAdoptedYear($year)) {
+            return null;
+        }
+
         return DB::table('solar_term_events')
             ->join(
                 'solar_term_definitions',
@@ -46,7 +52,11 @@ readonly class SolarTermService
 
     public function getLatestMonthBoundaryEvent(CarbonImmutable $dateTime): ?object
     {
-        return DB::table('solar_term_events')
+        if (! $this->hasCompleteAdoptedYear($dateTime->year)) {
+            return null;
+        }
+
+        $event = DB::table('solar_term_events')
             ->join(
                 'solar_term_definitions',
                 'solar_term_definitions.id',
@@ -65,11 +75,17 @@ readonly class SolarTermService
             ->where('solar_term_events.started_at', '<=', $dateTime->toDateTimeString())
             ->orderBy('solar_term_events.started_at', 'desc')
             ->first();
+
+        return $event !== null && $this->hasCompleteAdoptedYear((int) $event->year) ? $event : null;
     }
 
     public function getNextMonthBoundaryEvent(CarbonImmutable $dateTime): ?object
     {
-        return DB::table('solar_term_events')
+        if (! $this->hasCompleteAdoptedYear($dateTime->year)) {
+            return null;
+        }
+
+        $event = DB::table('solar_term_events')
             ->join(
                 'solar_term_definitions',
                 'solar_term_definitions.id',
@@ -88,11 +104,17 @@ readonly class SolarTermService
             ->where('solar_term_events.started_at', '>', $dateTime->toDateTimeString())
             ->orderBy('solar_term_events.started_at')
             ->first();
+
+        return $event !== null && $this->hasCompleteAdoptedYear((int) $event->year) ? $event : null;
     }
 
     public function getPreviousMonthBoundaryEvent(CarbonImmutable $dateTime): ?object
     {
-        return DB::table('solar_term_events')
+        if (! $this->hasCompleteAdoptedYear($dateTime->year)) {
+            return null;
+        }
+
+        $event = DB::table('solar_term_events')
             ->join(
                 'solar_term_definitions',
                 'solar_term_definitions.id',
@@ -111,10 +133,16 @@ readonly class SolarTermService
             ->where('solar_term_events.started_at', '<=', $dateTime->toDateTimeString())
             ->orderBy('solar_term_events.started_at', 'desc')
             ->first();
+
+        return $event !== null && $this->hasCompleteAdoptedYear((int) $event->year) ? $event : null;
     }
 
     public function getMonthBoundaryEvents(int $year): Collection
     {
+        if (! $this->hasCompleteAdoptedYear($year)) {
+            return collect();
+        }
+
         return DB::table('solar_term_events')
             ->join(
                 'solar_term_definitions',
@@ -134,5 +162,14 @@ readonly class SolarTermService
             ->where('solar_term_definitions.is_month_boundary', true)
             ->orderBy('solar_term_definitions.display_order')
             ->get();
+    }
+
+    private function hasCompleteAdoptedYear(int $year): bool
+    {
+        return DB::table('solar_term_events')
+            ->where('year', $year)
+            ->where('adopted', true)
+            ->distinct('solar_term_definition_id')
+            ->count('solar_term_definition_id') === self::TERMS_PER_COMPLETE_YEAR;
     }
 }

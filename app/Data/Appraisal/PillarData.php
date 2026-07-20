@@ -45,6 +45,7 @@ final readonly class PillarData implements JsonSerializable
         ];
     }
 
+    /** @return array{stem_id:int,branch_id:int,stem_name:string,branch_name:string,pillar:string} */
     public function jsonSerialize(): array
     {
         return $this->toArray();
