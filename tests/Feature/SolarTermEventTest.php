@@ -45,7 +45,7 @@ class SolarTermEventTest extends TestCase
             DB::table('solar_term_events')
                 ->where('year', 2026)
                 ->where('adopted', true)
-                ->where('source_rank', 'S')
+                ->where('source_rank', 'S2')
                 ->count(),
         );
     }
@@ -83,7 +83,7 @@ class SolarTermEventTest extends TestCase
         $event = app(SolarTermService::class)->getAdoptedSolarTermEvent('立春', 2026);
 
         $this->assertSame('2026-02-04 05:02:00', $event?->started_at);
-        $this->assertSame('S', $event?->source_rank);
+        $this->assertSame('S2', $event?->source_rank);
     }
 
     public function test_month_boundary_comparison_uses_adopted_events(): void

@@ -15,7 +15,7 @@ export const useCalendarCoverage = () => {
     onMounted(async () => {
         try {
             const response = await axios.get('/api/calendar-coverage');
-            coverage.value = response.data;
+            coverage.value = response.data.data;
         } catch {
             coverageError.value = '節入りデータの対応範囲を取得できませんでした。';
         }

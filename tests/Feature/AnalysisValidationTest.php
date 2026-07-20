@@ -25,7 +25,7 @@ class AnalysisValidationTest extends TestCase
             ->assertJsonPath('data.schema_version', 1)
             ->assertJsonPath('data.status', 'calculated')
             ->assertJsonPath('data.calculation_metadata.calendar_policy.day_boundary', '23:00')
-            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S')
+            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S2')
             ->assertJsonPath('data.calculation_metadata.solar_term_adopted', true)
             ->assertJsonCount(5, 'data.five_elements_scores')
             ->assertJsonStructure([
@@ -133,17 +133,16 @@ class AnalysisValidationTest extends TestCase
             ->assertJsonMissingPath('data.schema_version');
     }
 
-    public function test_1980_input_uses_adopted_calendar_data(): void
+    public function test_1980_input_is_rejected_until_the_annual_audit_difference_is_resolved(): void
     {
         $this->seedCalendarEvents();
         $payload = $this->validPayload();
         $payload['birthday'] = '1980-01-01';
 
         $this->postJson('/api/analyze', $payload)
-            ->assertOk()
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S')
-            ->assertJsonPath('data.calculation_metadata.solar_term_adopted', true);
+            ->assertUnprocessable()
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('message', '指定年の採用済み立春データが未登録です: 1980年');
     }
 
     public function test_birth_and_target_dates_are_limited_to_public_coverage(): void

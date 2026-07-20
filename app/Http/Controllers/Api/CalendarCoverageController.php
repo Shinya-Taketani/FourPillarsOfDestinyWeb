@@ -12,6 +12,9 @@ class CalendarCoverageController extends Controller
 {
     public function __invoke(CalendarCoverageService $coverageService): JsonResponse
     {
-        return response()->json($coverageService->getCoverage());
+        return response()->json([
+            'status' => 'success',
+            'data' => $coverageService->getCoverage(),
+        ]);
     }
 }

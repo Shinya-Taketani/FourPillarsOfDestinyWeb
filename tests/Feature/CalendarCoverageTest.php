@@ -13,7 +13,7 @@ class CalendarCoverageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_api_reports_complete_coverage_and_detects_an_intermediate_missing_year(): void
+    public function test_api_reports_audit_rejected_and_missing_years_without_hiding_gaps(): void
     {
         $this->seed(TaizanMasterSeeder::class);
         $this->seed(SolarTermDefinitionSeeder::class);
@@ -21,12 +21,14 @@ class CalendarCoverageTest extends TestCase
 
         $this->getJson('/api/calendar-coverage')
             ->assertOk()
-            ->assertJsonPath('birth_date.min_year', 1900)
-            ->assertJsonPath('birth_date.max_year', 2100)
-            ->assertJsonPath('internal_data.min_year', 1899)
-            ->assertJsonPath('internal_data.max_year', 2101)
-            ->assertJsonPath('complete', true)
-            ->assertJsonCount(0, 'missing_years');
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.birth_date.min_year', 1900)
+            ->assertJsonPath('data.birth_date.max_year', 2100)
+            ->assertJsonPath('data.internal_data.min_year', 1899)
+            ->assertJsonPath('data.internal_data.max_year', 2101)
+            ->assertJsonPath('data.expected_terms_per_year', 24)
+            ->assertJsonPath('data.complete', false)
+            ->assertJsonPath('data.missing_years', [1971, 1980]);
 
         DB::table('solar_term_events')
             ->where('year', 1950)
@@ -35,8 +37,8 @@ class CalendarCoverageTest extends TestCase
 
         $this->getJson('/api/calendar-coverage')
             ->assertOk()
-            ->assertJsonPath('complete', false)
-            ->assertJsonFragment(['missing_years' => [1950]]);
+            ->assertJsonPath('data.complete', false)
+            ->assertJsonPath('data.missing_years', [1950, 1971, 1980]);
 
         $this->postJson('/api/analyze', [
             'name' => '欠損年確認',

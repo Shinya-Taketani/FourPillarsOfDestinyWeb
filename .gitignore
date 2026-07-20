@@ -29,6 +29,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /storage/fonts
+/database/data/solar_terms/raw/
 AGENTS.md
 
 # Local documentation / private notes

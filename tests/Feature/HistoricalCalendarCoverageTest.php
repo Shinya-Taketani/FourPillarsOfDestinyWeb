@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\CalendarDataUnavailableException;
 use App\Services\SexagenaryService;
 use App\Services\SolarTermService;
 use Carbon\CarbonImmutable;
@@ -9,13 +10,14 @@ use Database\Seeders\SolarTermDefinitionSeeder;
 use Database\Seeders\SolarTermEventSeeder;
 use Database\Seeders\TaizanMasterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class HistoricalCalendarCoverageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_1971_single_appraisal_uses_adopted_naoj_events(): void
+    public function test_1971_single_appraisal_is_rejected_while_annual_audit_diff_is_unresolved(): void
     {
         $this->seedCalendarEvents();
 
@@ -26,19 +28,14 @@ class HistoricalCalendarCoverageTest extends TestCase
             'gender' => 'male',
             'longitude' => 135.76,
             'target_datetime' => '2026-07-01T00:00',
-        ])->assertOk()
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.solar_term', '小寒')
-            ->assertJsonPath('data.calculation_metadata.adopted_solar_term_source_rank', 'S')
-            ->assertJsonPath('data.calculation_metadata.solar_term_adopted', true)
-            ->assertJsonPath(
-                'data.calculation_metadata.adopted_solar_term_source.url',
-                'https://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/phenomena_sy.cgi?year=1971',
-            )
-            ->assertJsonStructure(['data' => ['dayun' => ['basis_term']]]);
+        ])->assertUnprocessable()
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('message', '指定年の採用済み立春データが未登録です: 1971年');
+
+        $this->assertAuditRejectedYear(1971, '1971-02-04 20:25:00', '1971-02-04 20:26:00');
     }
 
-    public function test_1980_compatibility_generates_both_destinies(): void
+    public function test_1980_compatibility_is_rejected_while_annual_audit_diff_is_unresolved(): void
     {
         $this->seedCalendarEvents();
 
@@ -53,24 +50,39 @@ class HistoricalCalendarCoverageTest extends TestCase
             'person1' => $person,
             'person2' => [...$person, 'name' => '相手', 'gender' => 'female'],
             'target_datetime' => '2026-07-01T00:00',
-        ])->assertOk()
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.person1_result.calculation_metadata.adopted_solar_term_source_rank', 'S')
-            ->assertJsonPath('data.person2_result.calculation_metadata.adopted_solar_term_source_rank', 'S')
-            ->assertJsonStructure(['data' => ['person1_result', 'person2_result', 'compatibility', 'relations']]);
+        ])->assertUnprocessable()
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('message', '指定年の採用済み立春データが未登録です: 1980年');
+
+        $this->assertAuditRejectedYear(1980, '1980-02-05 01:09:00', '1980-02-05 01:10:00');
     }
 
-    public function test_1971_and_1980_year_pillars_switch_at_naoj_lichun_minute(): void
+    public function test_2026_year_pillar_boundary_remains_available_at_the_verified_minute(): void
+    {
+        $this->seedCalendarEvents();
+
+        $event = app(SolarTermService::class)->getAdoptedSolarTermEvent('立春', 2026);
+
+        $this->assertNotNull($event);
+        $this->assertSame('2026-02-04 05:02:00', $event->started_at);
+        $this->assertSame('verified', $event->verification_status);
+    }
+
+    public function test_rejected_1971_and_1980_boundaries_do_not_silently_select_a_pillar(): void
     {
         $this->seedCalendarEvents();
         $service = app(SexagenaryService::class);
 
         foreach ([
-            [1971, '1971-02-04 20:24:00', '1971-02-04 20:25:00'],
-            [1980, '1980-02-05 01:08:00', '1980-02-05 01:09:00'],
-        ] as [$year, $before, $at]) {
-            $this->assertSame($year - 1, $service->getPillarYear(CarbonImmutable::parse($before, 'Asia/Tokyo')));
-            $this->assertSame($year, $service->getPillarYear(CarbonImmutable::parse($at, 'Asia/Tokyo')));
+            '1971-02-04 20:25:00', '1971-02-04 20:26:00', '1971-02-04 20:27:00',
+            '1980-02-05 01:09:00', '1980-02-05 01:10:00', '1980-02-05 01:11:00',
+        ] as $dateTime) {
+            try {
+                $service->getPillarYear(CarbonImmutable::parse($dateTime, 'Asia/Tokyo'));
+                $this->fail("採用保留年の境界を計算してはいけません: {$dateTime}");
+            } catch (CalendarDataUnavailableException) {
+                $this->addToAssertionCount(1);
+            }
         }
     }
 
@@ -98,5 +110,20 @@ class HistoricalCalendarCoverageTest extends TestCase
         $this->seed(TaizanMasterSeeder::class);
         $this->seed(SolarTermDefinitionSeeder::class);
         $this->seed(SolarTermEventSeeder::class);
+    }
+
+    private function assertAuditRejectedYear(int $year, string $actualLichun, string $expectedLichun): void
+    {
+        $definitionId = DB::table('solar_term_definitions')->where('name', '立春')->value('id');
+        $event = DB::table('solar_term_events')
+            ->where('year', $year)
+            ->where('solar_term_definition_id', $definitionId)
+            ->first();
+
+        $this->assertNotNull($event);
+        $this->assertSame($actualLichun, $event->started_at);
+        $this->assertFalse((bool) $event->adopted);
+        $this->assertSame('rejected', $event->verification_status);
+        $this->assertStringContainsString($expectedLichun, (string) $event->note);
     }
 }

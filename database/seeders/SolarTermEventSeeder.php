@@ -42,6 +42,11 @@ class SolarTermEventSeeder extends Seeder
                 'source_url' => $row['source_url'],
                 'source_rank' => $row['source_rank'],
                 'adopted' => $row['adopted'],
+                'precision_level' => $row['precision_level'],
+                'source_accessed_on' => $row['source_accessed_on'],
+                'source_citation_text' => $row['source_citation_text'],
+                'raw_content_hash' => $row['raw_content_hash'],
+                'verification_status' => $row['verification_status'],
                 'note' => $row['note'],
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -49,13 +54,19 @@ class SolarTermEventSeeder extends Seeder
         }
 
         DB::transaction(function () use ($inserts): void {
+            DB::table('solar_term_events')
+                ->where('source_title', '国立天文台 暦計算室 二十四節気・雑節 長期版')
+                ->where('source_rank', 'S')
+                ->delete();
+
             foreach (array_chunk($inserts, 500) as $chunk) {
                 DB::table('solar_term_events')->upsert(
                     $chunk,
                     ['year', 'solar_term_definition_id', 'source_rank'],
                     [
                         'started_at', 'timezone', 'calendar_system', 'source_title', 'source_url',
-                        'adopted', 'note', 'updated_at',
+                        'adopted', 'precision_level', 'source_accessed_on', 'source_citation_text',
+                        'raw_content_hash', 'verification_status', 'note', 'updated_at',
                     ],
                 );
             }

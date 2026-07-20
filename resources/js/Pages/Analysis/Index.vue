@@ -108,8 +108,12 @@ const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { r
 
             <p class="mb-6 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
                 <span v-if="coverage">
-                    正式採用済みの節入りデータ対応範囲: {{ coverage.birth_date.min_year }}年〜{{ coverage.birth_date.max_year }}年
-                    <template v-if="!coverage.complete">（欠損年あり）</template>
+                    <template v-if="coverage.complete">
+                        正式採用済みの節入りデータ対応範囲: {{ coverage.birth_date.min_year }}年〜{{ coverage.birth_date.max_year }}年
+                    </template>
+                    <template v-else>
+                        節入りデータに欠損があります。未登録年: {{ coverage.missing_years.join(', ') }}
+                    </template>
                 </span>
                 <span v-else-if="coverageError">{{ coverageError }}</span>
                 <span v-else>節入りデータの対応範囲を確認中です。</span>

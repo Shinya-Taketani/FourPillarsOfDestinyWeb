@@ -114,7 +114,11 @@ final class NaojSolarTermPageParser
             ));
         }
 
-        usort($events, static fn (array $left, array $right): int => $left['started_at'] <=> $right['started_at']);
+        for ($index = 1; $index < count($events); $index++) {
+            if ($events[$index]['started_at'] <= $events[$index - 1]['started_at']) {
+                throw new RuntimeException("{$year}年の二十四節気が時系列順ではありません。");
+            }
+        }
 
         return $events;
     }
